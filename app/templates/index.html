@@ -478,6 +478,8 @@ body{
 }
 
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js@1.12.0/src/toastify.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/toastify-js@1.12.0/src/toastify.min.js"></script>
 </head>
 <body>
 
@@ -614,6 +616,8 @@ body{
       </table>
     </div>
     <button class="btn-add-row" onclick="addRow()">＋ Add row</button>
+    <button class="btn-add-row" style="margin-left:8px" onclick="loadSample()">Load sample</button>
+    <button class="btn-add-row" style="margin-left:8px;background:var(--red-bg);border-color:var(--red);color:var(--red)" onclick="clearAllRows()">Clear all</button>
   </div>
 
   <!-- Deductions -->
@@ -810,8 +814,6 @@ body{
 
 </div><!-- /page -->
 
-<div class="toast" id="toast"></div>
-
 <!-- Terms of Use Modal -->
 <div class="modal-overlay" id="termsModal" onclick="if(event.target===this)closeTerms()">
   <div class="modal">
@@ -894,10 +896,13 @@ const peso = v => '₱' + Math.abs(v).toLocaleString('en-PH',{minimumFractionDig
 const flt  = id => parseFloat(document.getElementById(id).value) || 0;
 
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+  Toastify({
+    text: msg,
+    duration: 2500,
+    gravity: 'top',
+    position: 'right',
+    style: { background: 'var(--ink)', borderRadius: '8px', fontFamily: 'Outfit, sans-serif' }
+  }).showToast();
 }
 
 function setPeriod(btn) {
@@ -966,9 +971,21 @@ function makeStatusOptions(sel) {
 
 function addRow(d) {
   d = d || {date:'',type:'regular',reg:8,ot:0,status:''};
+  // Convert display date to YYYY-MM-DD for date input
+  let dateValue = d.date || '';
+  if (d.date && d.date.match(/[a-zA-Z]/)) {
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const match = d.date.match(/(\w+)\s+(\d+)/i);
+    if (match) {
+      const month = months[match[1].toLowerCase().slice(0,3)];
+      const day = match[2];
+      const year = new Date().getFullYear();
+      if (month !== undefined) dateValue = `${year}-${String(month+1).padStart(2,'0')}-${day.padStart(2,'0')}`;
+    }
+  }
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="text" value="${d.date}" placeholder="Apr 14 (Mon)" style="min-width:110px"/></td>
+    <td><input type="date" value="${dateValue}" style="min-width:140px"/></td>
     <td>
       <select onchange="styleTypeSelect(this)" style="min-width:170px">
         ${makeTypeOptions(d.type)}
@@ -983,6 +1000,11 @@ function addRow(d) {
   styleTypeSelect(tr.querySelector('select'));
 }
 
+function clearAllRows() {
+  if (!confirm('Clear all DTR entries?')) return;
+  document.getElementById('dtrBody').innerHTML = '';
+}
+
 function styleTypeSelect(sel) {
   sel.className = '';
   const d = DAY_TYPES.find(t => t.v === sel.value);
@@ -990,24 +1012,38 @@ function styleTypeSelect(sel) {
 }
 
 // ── Sample data ────────────────────────────────────────────────────────────
+const year = new Date().getFullYear();
 const SAMPLE = [
-  {date:'Apr 14 (Tue)', type:'regular', reg:8,ot:0,status:''},
-  {date:'Apr 15 (Wed)', type:'regular', reg:8,ot:0,status:''},
-  {date:'Apr 16 (Thu)', type:'regular', reg:8,ot:0,status:'WFH'},
-  {date:'Apr 17 (Fri)', type:'regular', reg:8,ot:0,status:''},
-  {date:'Apr 18 (Sat)', type:'rest_day',reg:0,ot:0,status:''},
-  {date:'Apr 19 (Sun)', type:'rest_day',reg:0,ot:0,status:''},
-  {date:'Apr 20 (Mon)', type:'regular', reg:8,ot:0,status:'WFH'},
-  {date:'Apr 21 (Tue)', type:'regular', reg:8,ot:0,status:''},
-  {date:'Apr 22 (Wed)', type:'regular', reg:8,ot:0,status:''},
-  {date:'Apr 23 (Thu)', type:'regular', reg:8,ot:0,status:''},
-  {date:'Apr 24 (Fri)', type:'regular', reg:8,ot:0,status:'WFH'},
-  {date:'Apr 25 (Sat)', type:'rest_day',reg:0,ot:0,status:''},
-  {date:'Apr 26 (Sun)', type:'rest_day',reg:0,ot:0,status:''},
-  {date:'Apr 27 (Mon)', type:'regular', reg:8,ot:1,status:''},
+  {date:`${year}-04-14`, type:'regular', reg:8,ot:0,status:''},
+  {date:`${year}-04-15`, type:'regular', reg:8,ot:0,status:''},
+  {date:`${year}-04-16`, type:'regular', reg:8,ot:0,status:'WFH'},
+  {date:`${year}-04-17`, type:'regular', reg:8,ot:0,status:''},
+  {date:`${year}-04-18`, type:'rest_day',reg:0,ot:0,status:''},
+  {date:`${year}-04-19`, type:'rest_day',reg:0,ot:0,status:''},
+  {date:`${year}-04-20`, type:'regular', reg:8,ot:0,status:'WFH'},
+  {date:`${year}-04-21`, type:'regular', reg:8,ot:0,status:''},
+  {date:`${year}-04-22`, type:'regular', reg:8,ot:0,status:''},
+  {date:`${year}-04-23`, type:'regular', reg:8,ot:0,status:''},
+  {date:`${year}-04-24`, type:'regular', reg:8,ot:0,status:'WFH'},
+  {date:`${year}-04-25`, type:'rest_day',reg:0,ot:0,status:''},
+  {date:`${year}-04-26`, type:'rest_day',reg:0,ot:0,status:''},
+  {date:`${year}-04-27`, type:'regular', reg:8,ot:1,status:''},
   {date:'Apr 28 (Tue)', type:'regular', reg:8,ot:0,status:''},
 ];
-SAMPLE.forEach(addRow);
+
+function loadSample() {
+  if (document.querySelectorAll('#dtrBody tr').length > 0) {
+    if (!confirm('This will replace all current entries. Continue?')) return;
+    clearAllRows();
+  }
+  SAMPLE.forEach(addRow);
+  showToast('✓ Sample data loaded');
+}
+
+function clearAllRows() {
+  document.getElementById('dtrBody').innerHTML = '';
+  showToast('✓ All rows cleared');
+}
 
 // ── Store last result for download ──
 let lastResult = null;

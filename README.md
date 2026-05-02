@@ -1,52 +1,88 @@
 # PaySlip PH — Philippine Payroll System 🇵🇭
 
-DOLE-compliant web-based payroll calculator with a Python backend and HTML/JS frontend.
+DOLE-compliant web-based payroll calculator with a Python backend and React frontend.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────┐      POST /compute (JSON)        ┌──────────────┐
-│             │ ───────────────────────────────► │              │
-│  index.html │                                  │  server.py   │
-│  (Frontend) │ ◄─────────────────────────────── │  (Flask API) │
-│             │         Computed result          │              │
-└─────────────┘                                  └──────┬───────┘
-                                                       │
-                                              ┌────────▼───-────┐
-                                              │   payroll.py    │
-                                              │ (Core engine)   │
-                                              └─────────────────┘
+Payslip-PH/
+├── app/
+│   ├── __init__.py      # Flask app factory
+│   ├── server.py        # Routes, API, payslip print
+│   ├── payroll.py       # Core computation engine
+│   ├── templates/
+│   │   ├── landing.html    # Landing page
+│   │   └── payslip_print.html  # Printable payslip
+│   └── static/
+│       └── favicon.svg
+├── frontend/            # React + Vite frontend
+│   ├── src/
+│   │   ├── App.jsx        # Main React component
+│   │   └── App.css        # Styles
+│   ├── index.html
+│   └── vite.config.js  # Proxies API to Flask
+├── run.py               # Backend entry point
+├── requirements.txt     # Python dependencies
+└── README.md
 ```
 
-| File | Purpose |
-|------|---------|
-| `server.py` | Flask web server — serves the frontend and exposes the `/compute` REST API |
-| `index.html` | Single-page web UI — collects DTR entries, salary info, deductions, and displays the payslip |
-| `payroll.py` | Pure Python computation engine — DOLE rate multipliers, pay calculations, data models |
+**Data flow:**
+```
+React Frontend → POST /compute (JSON) → Flask (server.py) → PayrollCalculator (payroll.py)
+                                            ↓
+                           POST /print-payslip → payslip_print.html
+```
 
 ---
+
+## Features
+
+- **DOLE-compliant calculations** — proper holiday, rest day, and overtime multipliers
+- **Date picker** — select dates with calendar widget instead of manual text input
+- **Load Sample** — one-click sample data to get started quickly
+- **Clear All** — remove all DTR entries instantly
+- **Printable payslip** — dedicated print template with clean layout
+- **Toastify notifications** — clean, non-intrusive alerts
+- **Rate modes** — monthly, hourly, or straight-time salary input
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3, Flask |
-| Frontend | HTML5, CSS3, Vanilla JavaScript |
+| Frontend | React 18, Vite, Toastify-js |
 | Computation | Pure Python (no external math/finance libs) |
 | API | REST (JSON) |
+| UI Notifications | Toastify-js |
+| Deployment | Vercel (serverless) |
 
 ---
 
 ## Quick Start
 
+**Development:**
+
+1. Start Flask backend:
 ```bash
-pip3 install flask
-python3 server.py
+pip install -r requirements.txt
+python3 run.py
 ```
 
-Then open **http://localhost:8080** in your browser.
+2. Start React frontend (new terminal):
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open **http://localhost:3000** in your browser.
+
+**Deploy to Vercel:**
+```bash
+vercel --prod
+```
 
 ---
 
@@ -78,7 +114,7 @@ Computes an employee's salary for a given pay period.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `date` | string | Display label (e.g. `"Apr 14 (Tue)"`) |
+| `date` | string | Date in YYYY-MM-DD format (e.g. `"2026-04-14"`) |
 | `type` | string | One of: `"regular"`, `"rest_day"`, `"special"`, `"special_rest"`, `"legal"`, `"legal_rest"`, `"absent"` |
 | `reg` | number | Regular hours worked |
 | `ot` | number | Overtime hours |
