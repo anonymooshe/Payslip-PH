@@ -7,6 +7,7 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
 <meta http-equiv="X-Frame-Options" content="DENY"/>
 <meta name="referrer" content="strict-origin-when-cross-origin"/>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
 <title>PaySlip PH — Salary Calculator</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -736,7 +737,7 @@ body{
       </div>
 
       <div class="action-row">
-        <button class="btn-action btn-print" onclick="window.print()">🖨 Print payslip</button>
+        <button class="btn-action btn-print" onclick="printPayslip()">🖨 Print payslip</button>
         <button class="btn-action btn-download" onclick="downloadTxt()">⬇ Download .txt</button>
       </div>
     </div>
@@ -1123,6 +1124,34 @@ async function compute() {
     btn.innerHTML = 'Compute salary <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>';
     btn.disabled = false;
   }
+}
+
+// ── Print Payslip ────────────────────────────────────────────────────────
+function printPayslip() {
+  if (!lastResult) { showToast('⚠ No result to print.'); return; }
+  
+  const payload = JSON.stringify(lastResult);
+  console.log('Sending payload:', payload);
+  
+  fetch('/print-payslip', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('Server error: ' + response.status);
+    return response.text();
+  })
+  .then(html => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { showToast('⚠ Pop-up blocked. Allow pop-ups for this site.'); return; }
+    printWindow.document.write(html);
+    printWindow.document.close();
+  })
+  .catch(e => {
+    console.error('Print payslip error:', e);
+    showToast('⚠ Error generating payslip: ' + e.message);
+  });
 }
 
 // ── Download .txt ──────────────────────────────────────────────────────────

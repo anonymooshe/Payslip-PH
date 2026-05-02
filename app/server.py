@@ -5,7 +5,9 @@ Serves the HTML frontend and exposes a /compute API.
 Security-hardened: rate limiting, input validation, CSP headers, error sanitization.
 """
 
+import os
 import time
+import secrets
 from collections import defaultdict
 from functools import wraps
 
@@ -136,6 +138,30 @@ def calculator():
 @app.route("/favicon.svg")
 def favicon():
     return app.send_static_file("favicon.svg")
+
+
+@app.route("/print-payslip", methods=["POST"])
+def print_payslip():
+    """Render printable payslip from POST data."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    return render_template(
+        "payslip_print.html",
+        employee_name=data.get("employeeName", "Employee"),
+        period=data.get("period", "—"),
+        work_days=data.get("workDays", 0),
+        hourly_rate=data.get("hourlyRate", 0),
+        total_reg_hrs=data.get("totalRegHrs", 0),
+        total_ot_hrs=data.get("totalOTHrs", 0),
+        earnings=data.get("earnings", []),
+        deductions=data.get("deductions", []),
+        gross_pay=data.get("grossPay", 0),
+        total_deductions=data.get("totalDeductions", 0),
+        net_pay=data.get("netPay", 0),
+        base_label=data.get("baseLabel", "")
+    )
 
 
 @app.route("/compute", methods=["POST"])

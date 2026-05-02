@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payslip - {{ employee_name }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: white;
+      color: #2c3e50;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    
+    .payslip-container {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 40px;
+      border: 2px solid #2c3e50;
+    }
+    
+    .header {
+      text-align: center;
+      border-bottom: 3px solid #2c3e50;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
+    
+    .header p {
+      color: #7f8c8d;
+      font-size: 16px;
+    }
+    
+    .employee-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .info-block {
+      flex: 1;
+    }
+    
+    .info-block h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #7f8c8d;
+      margin-bottom: 5px;
+    }
+    
+    .info-block p {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .section {
+      margin-bottom: 25px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #2c3e50;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 8px;
+      margin-bottom: 15px;
+    }
+    
+    .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #ecf0f1;
+    }
+    
+    .row:last-child {
+      border-bottom: none;
+    }
+    
+    .label {
+      color: #555;
+    }
+    
+    .amount {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .deduction .label {
+      color: #e74c3c;
+    }
+    
+    .deduction .amount {
+      color: #e74c3c;
+    }
+    
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 15px 20px;
+      margin-top: 10px;
+      background: #2c3e50;
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .total-row.net {
+      background: #27ae60;
+    }
+    
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    
+    .metric-box {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .metric-box .value {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .metric-box .label {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-top: 5px;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #ecf0f1;
+      color: #95a5a6;
+      font-size: 12px;
+    }
+    
+    @media print {
+      body { background: white; }
+      .payslip-container { border: none; margin: 0; padding: 20px; }
+      button { display: none; }
+    }
+    
+    .print-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 12px 30px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    
+    .print-btn:hover {
+      background: #2980b9;
+    }
+    
+    @media print {
+      .print-btn { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="payslip-container">
+    <div class="header">
+      <h1>PAYSLIP</h1>
+      <p>Philippine Payroll System</p>
+    </div>
+    
+    <div class="employee-info">
+      <div class="info-block">
+        <h3>Employee Name</h3>
+        <p>{{ employee_name }}</p>
+      </div>
+      <div class="info-block">
+        <h3>Pay Period</h3>
+        <p>Period {{ period }}</p>
+      </div>
+      <div class="info-block">
+        <h3>Work Days</h3>
+        <p>{{ work_days }} days</p>
+      </div>
+    </div>
+    
+    <div class="metrics">
+      <div class="metric-box">
+        <div class="value">₱{{ "%.2f"|format(hourly_rate) }}/hr</div>
+        <div class="label">Hourly Rate</div>
+      </div>
+      <div class="metric-box">
+        <div class="value">{{ total_reg_hrs }} hrs</div>
+        <div class="label">Regular Hours</div>
+      </div>
+      <div class="metric-box">
+        <div class="value">{{ total_ot_hrs }} hrs</div>
+        <div class="label">OT Hours</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Earnings</div>
+      {% for item in earnings %}
+      <div class="row">
+        <span class="label">{{ item.label }}</span>
+        <span class="amount">₱{{ "%.2f"|format(item.amount) }}</span>
+      </div>
+      {% endfor %}
+      <div class="total-row">
+        <span>Gross Pay</span>
+        <span>₱{{ "%.2f"|format(gross_pay) }}</span>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Deductions</div>
+      {% for item in deductions %}
+      <div class="row deduction">
+        <span class="label">− {{ item.label }}</span>
+        <span class="amount">₱{{ "%.2f"|format(item.amount) }}</span>
+      </div>
+      {% endfor %}
+      <div class="total-row">
+        <span>Total Deductions</span>
+        <span>₱{{ "%.2f"|format(total_deductions) }}</span>
+      </div>
+    </div>
+    
+    <div class="total-row net">
+      <span>Net Pay</span>
+      <span>₱{{ "%.2f"|format(net_pay) }}</span>
+    </div>
+    
+    <div class="footer">
+      <p>Generated by PaySlip PH • {{ base_label }}</p>
+    </div>
+  </div>
+  
+  <button class="print-btn" onclick="window.print()">🖨 Print Payslip</button>
+  
+  <script>
+    window.onload = function() {
+      // Auto-print dialog
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    }
+  </script>
+</body>
+</html>
