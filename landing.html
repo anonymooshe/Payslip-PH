@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self';"/>
+<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+<meta http-equiv="X-Frame-Options" content="DENY"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
+<title>PaySlip PH — Salary Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<style>
+:root {
+  --ink: #0f1117;
+  --accent: #1a56db;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:'Outfit',sans-serif;
+  background:var(--ink);
+  color:#fff;
+  min-height:100vh;
+  overflow:hidden;
+}
+
+.landing{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:2rem;height:100vh;
+}
+
+/* === ENHANCED LOGO ONLY === */
+.logo-wrap{
+  position:relative;
+  margin-bottom:2rem;
+}
+
+.landing-logo{
+  width:80px;height:80px;
+  background:var(--accent);
+  border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'DM Serif Display',serif;
+  font-size:40px;color:#fff;
+  position:relative;overflow:hidden;
+
+  box-shadow:0 0 60px rgba(26,86,219,.35);
+  animation:float 3s ease-in-out infinite;
+}
+
+/* shimmer */
+.landing-logo::before{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);
+  animation:shimmer 3s ease-in-out infinite;
+}
+
+/* pulse ring */
+.landing-logo::after{
+  content:'';
+  position:absolute;
+  width:52px;height:52px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,.12);
+  animation:pulse-ring 2.5s ease-out infinite;
+}
+
+.logo-inner{
+  position:relative;
+  z-index:2;
+  animation:coin-flip 4s ease-in-out infinite;
+}
+
+/* outer glow */
+.outer-glow{
+  position:absolute;
+  inset:-2px;
+  border-radius:22px;
+  pointer-events:none;
+  animation:glow-pulse 3s ease-in-out infinite;
+}
+
+/* === ORIGINAL FLOAT === */
+@keyframes float{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-8px)}
+}
+
+/* === NEW EFFECTS === */
+@keyframes shimmer{
+  0%{transform:translateX(-100%) skewX(-15deg);opacity:0}
+  40%{opacity:1}
+  60%,100%{transform:translateX(180%) skewX(-15deg);opacity:0}
+}
+
+@keyframes pulse-ring{
+  0%{transform:scale(.7);opacity:.5}
+  60%,100%{transform:scale(1.4);opacity:0}
+}
+
+@keyframes glow-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(26,86,219,0)}
+  50%{box-shadow:0 0 0 10px rgba(26,86,219,.15),0 0 36px rgba(26,86,219,.1)}
+}
+
+@keyframes coin-flip{
+  0%,85%,100%{transform:rotateY(0)}
+  90%{transform:rotateY(180deg)}
+  95%{transform:rotateY(360deg)}
+}
+
+/* === KEEP EVERYTHING ELSE SAME === */
+.landing h1{
+  font-family:'DM Serif Display',serif;
+  font-size:clamp(2.2rem,6vw,4rem);
+  letter-spacing:-.02em;line-height:1.15;margin-bottom:.75rem;
+}
+.landing h1 em{color:var(--accent);font-style:italic}
+
+.landing p{
+  color:#9ca3af;font-size:clamp(14px,2.5vw,17px);
+  max-width:480px;line-height:1.7;font-weight:300;margin-bottom:2.5rem
+}
+
+.landing-features{
+  display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;margin-bottom:3rem
+}
+
+.landing-feat{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:.85rem 1.2rem;
+  font-size:13px;color:#d1d5db
+}
+
+.landing-feat strong{color:#fff;display:block;margin-bottom:3px}
+
+.btn-landing{
+  padding:14px 48px;border-radius:12px;font-size:16px;font-weight:600;
+  background:var(--accent);color:#fff;text-decoration:none;
+  box-shadow:0 4px 24px rgba(26,86,219,.35);
+  transition:.15s;
+}
+.btn-landing:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 32px rgba(26,86,219,.45)
+}
+
+.landing-footer{
+  position:fixed;bottom:2rem;left:0;right:0;text-align:center;
+  font-size:12px;color:#4b5563;padding:0 1rem
+}
+
+/* ── MOBILE ── */
+@media(max-width:600px){
+  body{overflow:auto}
+  .landing{padding:3rem 1.5rem;height:auto;min-height:100vh;justify-content:center}
+  .logo-wrap{margin-bottom:1.5rem}
+  .landing-logo{width:64px;height:64px;font-size:32px}
+  .landing-logo::after{width:42px;height:42px}
+  .landing h1{font-size:clamp(1.8rem,8vw,2.6rem);margin-bottom:.5rem}
+  .landing p{font-size:clamp(13px,4vw,15px);padding:0 .25rem;margin-bottom:1.75rem}
+  .landing-features{gap:.75rem;margin-bottom:2rem;flex-direction:column;width:100%}
+  .landing-feat{padding:.75rem 1rem;font-size:12px;width:100%}
+  .btn-landing{padding:12px 36px;font-size:15px;width:100%;text-align:center}
+  .landing-footer{position:relative;bottom:auto;margin-top:2rem;padding:.5rem;font-size:11px}
+  .modal-overlay{padding:.75rem}
+  .modal{max-height:90vh}
+  .modal-header{padding:1rem}
+  .modal-body{padding:1rem}
+  .modal-body h4{font-size:13px;margin:1rem 0 .4rem}
+  .modal-body p,.modal-body li{font-size:13px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="landing">
+
+  <!-- UPDATED LOGO ONLY -->
+  <div class="logo-wrap">
+    <div class="outer-glow"></div>
+    <div class="landing-logo">
+      <div class="logo-inner">₱</div>
+    </div>
+  </div>
+
+  <h1>PaySlip <em>PH</em></h1>
+
+  <p>
+    DOLE-compliant payroll calculator for Philippine employers. Compute salaries with overtime, holiday pay, and rest day premiums — accurately, every time.
+  </p>
+
+  <div class="landing-features">
+    <div class="landing-feat"><strong>⏱ Overtime</strong>Regular & holiday OT rates</div>
+    <div class="landing-feat"><strong>📅 Holidays</strong>Special & legal multipliers</div>
+    <div class="landing-feat"><strong>📉 Deductions</strong>SSS · PhilHealth · Pag-IBIG</div>
+  </div>
+
+  <a class="btn-landing" href="/calculator">Get Started</a>
+
+  <div class="landing-footer">
+    <!-- Built with Python + Flask · DOLE Labor Standards -->
+    &copy; 2026 PaySlip PH. All rights reserved.
+    <span style="margin:0 8px;color:#6b7280">·</span>
+    <a href="javascript:void(0)" onclick="showTerms()" style="color:#6b7280;text-decoration:none">Terms of Use</a>
+  </div>
+
+</div>
+
+<!-- Terms of Use Modal -->
+<div class="modal-overlay" id="termsModal" onclick="if(event.target===this)closeTerms()">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Terms of Use</h3>
+      <button class="modal-close" onclick="closeTerms()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <h4>1. Purpose</h4>
+      <p>PaySlip PH is a payroll calculation tool designed to assist Philippine employers in computing employee salaries in accordance with Department of Labor and Employment (DOLE) labor standards. This tool is provided for informational and computational convenience only.</p>
+
+      <h4>2. Accuracy Disclaimer</h4>
+      <p>While every effort has been made to ensure that calculations reflect current DOLE multipliers and Philippine labor regulations, PaySlip PH does not guarantee the accuracy, completeness, or timeliness of its computations. Users are strongly advised to:</p>
+      <ul>
+        <li>Verify all computed results against official DOLE guidelines and BIR tax tables.</li>
+        <li>Consult with a licensed HR professional, accountant, or labor law practitioner before finalizing payroll disbursements.</li>
+        <li>Check for updates to SSS, PhilHealth, and Pag-IBIG contribution schedules, as these are subject to periodic changes by the respective government agencies.</li>
+      </ul>
+
+      <h4>3. No Legal Advice</h4>
+      <p>PaySlip PH does not constitute legal, tax, or professional advice. The developers and contributors of this software assume no liability for errors, omissions, or any consequences arising from the use of computed results.</p>
+
+      <h4>4. Data Privacy</h4>
+      <p>This application performs all calculations locally. Employee names, salary details, and DTR entries entered into this tool are not stored, transmitted, or collected by any third party. No personal data is retained after the browser session ends.</p>
+
+      <h4>5. Limitation of Liability</h4>
+      <p>To the maximum extent permitted by applicable law, the developers, contributors, and maintainers of PaySlip PH shall not be held liable for any direct, indirect, incidental, special, consequential, or punitive damages—including but not limited to:</p>
+      <ul>
+        <li>Legal penalties, fines, or sanctions from government agencies (DOLE, BIR, SSS, PhilHealth, Pag-IBIG).</li>
+        <li>Underpayment or overpayment of employee salaries, benefits, or contributions.</li>
+        <li>Loss of data, profits, business opportunities, or reputation.</li>
+        <li>Claims, suits, or actions brought by employees, contractors, or third parties resulting from the use of this software.</li>
+      </ul>
+      <p>By using this software, you expressly agree to indemnify and hold harmless the developers from any and all claims, liabilities, damages, and legal costs arising out of your use of PaySlip PH.</p>
+
+      <h4>6. Use at Your Own Risk</h4>
+      <p>By using PaySlip PH, you acknowledge and agree that your use of this tool is entirely at your own risk. The software is provided "as is" without warranties of any kind, either express or implied.</p>
+
+      <h4>6. License</h4>
+      <p>This software is intended for personal and organizational use. Redistribution or commercial use without explicit permission from the author is prohibited.</p>
+
+      <h4>7. Updates</h4>
+      <p>These Terms of Use may be revised at any time. Continued use of the application after changes constitutes acceptance of the updated terms.</p>
+
+      <p style="color:#6b7280;margin-top:1.5rem;font-size:13px"><em>Last updated: May 2026</em></p>
+    </div>
+  </div>
+</div>
+
+<style>
+.modal-overlay{
+  position:fixed;inset:0;z-index:10000;
+  background:rgba(15,17,23,.6);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+  padding:2rem;animation:fadeIn .2s ease;
+}
+.modal-overlay.show{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{
+  background:#fff;border-radius:12px;
+  box-shadow:0 24px 64px rgba(0,0,0,.2);
+  max-width:640px;width:100%;max-height:80vh;
+  display:flex;flex-direction:column;
+  animation:modalSlide .3s ease;
+}
+@keyframes modalSlide{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.25rem 1.5rem;border-bottom:1px solid #f3f4f6;
+}
+.modal-header h3{font-size:16px;font-weight:600;color:#0f1117;font-family:'Outfit',sans-serif}
+.modal-close{
+  background:none;border:none;cursor:pointer;
+  color:#6b7280;font-size:22px;padding:2px 6px;
+  border-radius:6px;transition:background .15s,color .15s;
+}
+.modal-close:hover{background:#f3f4f6;color:#0f1117}
+.modal-body{padding:1.5rem;overflow-y:auto;font-size:14px;line-height:1.75;color:#3a3f4d;font-family:'Outfit',sans-serif}
+.modal-body h4{font-size:14px;font-weight:600;color:#0f1117;margin:1.25rem 0 .5rem}
+.modal-body h4:first-child{margin-top:0}
+.modal-body p{margin-bottom:.75rem}
+.modal-body ul{padding-left:1.25rem;margin-bottom:.75rem}
+.modal-body li{margin-bottom:.35rem}
+</style>
+
+<script>
+function showTerms(){document.getElementById('termsModal').classList.add('show')}
+function closeTerms(){document.getElementById('termsModal').classList.remove('show')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTerms()})
+</script>
+
+</body>
+</html>
