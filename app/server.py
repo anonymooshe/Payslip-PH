@@ -5,39 +5,26 @@ Serves the HTML frontend and exposes a /compute API.
 Security-hardened: rate limiting, input validation, CSP headers, error sanitization.
 """
 
-import os
 import time
-import secrets
 from collections import defaultdict
 from functools import wraps
 
-from flask import Flask, request, jsonify, send_file, make_response
+from flask import request, jsonify, render_template
 from markupsafe import escape
-from payroll import PayrollCalculator, DTREntry, DayType, PayPeriod, Deductions
+from app.payroll import PayrollCalculator, DTREntry, DayType, PayPeriod, Deductions
+from app import app
 
 # ─── Security config ──────────────────────────────────────────────────────────
 
-# Secret key for session management
-SECRET_KEY = os.environ.get("PAYSLIP_SECRET_KEY", secrets.token_hex(32))
-
-# Rate limiting: max requests per IP within a time window
-RATE_LIMIT_MAX = 30          # max requests
-RATE_LIMIT_WINDOW = 60       # seconds
-ip_requests: dict[str, list[float]] = defaultdict(list)
-
-# Input limits
-MAX_DTR_ENTRIES = 366         # max one per day in a year
-MAX_PAYLOAD_BYTES = 50 * 1024 # 50KB max request body
+RATE_LIMIT_MAX = 30
+RATE_LIMIT_WINDOW = 60
+MAX_DTR_ENTRIES = 366
+MAX_PAYLOAD_BYTES = 50 * 1024
 MAX_NAME_LENGTH = 120
 MAX_STATUS_LENGTH = 60
-MAX_SALARY = 10_000_000_000   # ₱10 billion cap
+MAX_SALARY = 10_000_000_000
 
-# ─── Flask app ────────────────────────────────────────────────────────────────
-
-app = Flask(__name__, static_folder=".")
-app.secret_key = SECRET_KEY
-app.config["MAX_CONTENT_LENGTH"] = MAX_PAYLOAD_BYTES
-app.config["JSON_AS_ASCII"] = False
+ip_requests: dict[str, list[float]] = defaultdict(list)
 
 
 # ─── Rate limiter ─────────────────────────────────────────────────────────────
@@ -138,12 +125,17 @@ VALID_RATE_MODES = {"monthly", "hourly", "straight"}
 
 @app.route("/")
 def landing():
-    return send_file("landing.html")
+    return render_template("landing.html")
 
 
 @app.route("/calculator")
 def calculator():
-    return send_file("index.html")
+    return render_template("index.html")
+
+
+@app.route("/favicon.svg")
+def favicon():
+    return app.send_static_file("favicon.svg")
 
 
 @app.route("/compute", methods=["POST"])

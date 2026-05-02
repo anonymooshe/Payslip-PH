@@ -1096,8 +1096,8 @@ async function compute() {
     document.getElementById('psMonthly').textContent = baseLabel;
 
     // ── Earnings rows ───────────────────────────────────────────────────────
-    document.getElementById('psEarnings').innerHTML = r.earnings.map(([l,v]) =>
-      `<div class="ps-row"><span class="ps-label">${l.label}</span><span class="ps-amt">${peso(v.amount)}</span></div>`
+    document.getElementById('psEarnings').innerHTML = r.earnings.map(e =>
+      `<div class="ps-row"><span class="ps-label">${e.label}</span><span class="ps-amt">${peso(e.amount)}</span></div>`
     ).join('') || '<div class="ps-row" style="color:var(--ink3);font-size:12px">No earnings recorded.</div>';
 
     document.getElementById('psGross').textContent = peso(r.grossPay);
