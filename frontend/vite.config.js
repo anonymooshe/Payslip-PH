@@ -9,7 +9,7 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        // /api prefix kept — matches Flask route prefixes on both dev & Vercel
       }
     }
   }

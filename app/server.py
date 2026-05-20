@@ -5,11 +5,12 @@ Serves the HTML frontend and exposes a /compute API.
 Security-hardened: rate limiting, input validation, CSP headers, error sanitization.
 """
 
+import os
 import time
 from collections import defaultdict
 from functools import wraps
 
-from flask import request, jsonify
+from flask import request, jsonify, send_from_directory
 from markupsafe import escape
 from flask_cors import CORS
 from app.payroll import PayrollCalculator, DTREntry, DayType, PayPeriod, Deductions
@@ -116,45 +117,40 @@ DAY_TYPE_MAP = {
     "absent":        DayType.ABSENT,
 }
 VALID_PERIODS = {"1-15", "16-30"}
-VALID_RATE_MODES = {"monthly", "hourly", "straight"}
+VALID_RATE_MODES = {"monthly", "hourly", "straight", "simple"}
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
-@app.route("/")
-def index():
+DIST_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+
+@app.route("/api")
+def api_index():
     return jsonify({"message": "PaySlip PH API is running."})
 
+@app.route("/")
+def serve_app():
+    index = os.path.join(DIST_DIR, "index.html")
+    if os.path.exists(index):
+        return send_from_directory(DIST_DIR, "index.html")
+    return jsonify({"error": "Frontend not built. Run: cd frontend && npm run build"}), 503
+
+@app.route("/assets/<path:filename>")
+def serve_assets(filename):
+    assets_dir = os.path.join(DIST_DIR, "assets")
+    if os.path.exists(os.path.join(assets_dir, filename)):
+        return send_from_directory(assets_dir, filename)
+    return jsonify({"error": "Not found"}), 404
+
 @app.route("/favicon.svg")
-def favicon():
+def serve_favicon():
+    f = os.path.join(DIST_DIR, "favicon.svg")
+    if os.path.exists(f):
+        return send_from_directory(DIST_DIR, "favicon.svg")
     return app.send_static_file("favicon.svg")
 
 
-@app.route("/print-payslip", methods=["POST"])
-def print_payslip():
-    """Render printable payslip from POST data."""
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    return render_template(
-        "payslip_print.html",
-        employee_name=data.get("employeeName", "Employee"),
-        period=data.get("period", "—"),
-        work_days=data.get("workDays", 0),
-        hourly_rate=data.get("hourlyRate", 0),
-        total_reg_hrs=data.get("totalRegHrs", 0),
-        total_ot_hrs=data.get("totalOTHrs", 0),
-        earnings=data.get("earnings", []),
-        deductions=data.get("deductions", []),
-        gross_pay=data.get("grossPay", 0),
-        total_deductions=data.get("totalDeductions", 0),
-        net_pay=data.get("netPay", 0),
-        base_label=data.get("baseLabel", "")
-    )
-
-
-@app.route("/compute", methods=["POST"])
+@app.route("/api/compute", methods=["POST"])
 @rate_limit
 def compute():
     """Compute payroll from validated JSON input."""
@@ -290,7 +286,7 @@ def compute():
             if fixed_hourly < 0:
                 return jsonify({"error": "Negative values not allowed"}), 400
             monthly_salary = fixed_hourly * 8 * 26
-        else:  # straight
+        else:
             st_hours = float(data.get("stHours", 1))
             st_pay = float(data.get("stPay", 0))
             if st_hours <= 0 or st_pay < 0:
