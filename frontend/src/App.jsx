@@ -1,33 +1,45 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Toastify from 'toastify-js'
 import 'toastify-js/src/toastify.css'
+import { buildPrintHtml } from './utils/helpers'
+import SimpleMode from './components/SimpleMode'
+import DTRTable from './components/DTRTable'
+import DeductionsForm from './components/DeductionsForm'
+import Results from './components/Results'
+import PrintModal from './components/PrintModal'
+import TermsModal from './components/TermsModal'
+import RateReference from './components/RateReference'
+import Footer from './components/Footer'
 import './App.css'
-
-const DAY_TYPES = [
-  { v: 'regular', l: 'Regular workday', cls: 'type-regular' },
-  { v: 'rest_day', l: 'Rest day (worked)', cls: 'type-rest' },
-  { v: 'special', l: 'Special holiday', cls: 'type-special' },
-  { v: 'special_rest', l: 'Special on Rest', cls: 'type-special' },
-  { v: 'legal', l: 'Legal holiday', cls: 'type-legal' },
-  { v: 'legal_rest', l: 'Legal on Rest', cls: 'type-legal' },
-  { v: 'absent', l: 'Absent / unpaid leave', cls: 'type-absent' },
-]
-
-const STATUS_OPTIONS = ['', 'WFH', 'Leave', 'Sick', 'Holiday']
 
 function App() {
   const [rateMode, setRateMode] = useState('monthly')
-  const [monthlySalary, setMonthlySalary] = useState(20000)
-  const [fixedHourly, setFixedHourly] = useState(112.50)
+  const [monthlySalary, setMonthlySalary] = useState(20800)
+  const [fixedHourly, setFixedHourly] = useState(100)
   const [stHours, setStHours] = useState(80)
-  const [stPay, setStPay] = useState(9000)
+  const [stPay, setStPay] = useState(8000)
   const [period, setPeriod] = useState('1-15')
+  const [simpleCats, setSimpleCats] = useState({ reg: 80, rest: 0, special: 0, specialRest: 0, legal: 0, legalRest: 0, legalUnworked: 0 })
   const [empName, setEmpName] = useState('')
+  const [empPosition, setEmpPosition] = useState('')
   const [deductions, setDeductions] = useState({ sss: 0, philhealth: 0, pagibig: 0, tax: 0, other: 0 })
   const [entries, setEntries] = useState([])
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [printHtml, setPrintHtml] = useState('')
+  const printFrameRef = useRef(null)
+
+  const navigate = useNavigate()
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setShowScrollBtn(window.scrollY > 300)
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const showToast = (msg) => {
     Toastify({
@@ -42,29 +54,31 @@ function App() {
   const getHourlyRate = () => {
     if (rateMode === 'monthly') return (monthlySalary / 26 / 8)
     if (rateMode === 'hourly') return fixedHourly
-    return (stPay / stHours)
+    if (rateMode === 'straight') return (stPay / stHours)
+    return fixedHourly  // simple
   }
 
   const updateRateInfo = () => {
     const h = getHourlyRate()
     const d = h * 8
     if (rateMode === 'monthly') {
-      document.getElementById('dailyDisplay').textContent = peso(d)
-      document.getElementById('hourlyDisplay').textContent = peso(h)
+      document.getElementById('dailyDisplay').textContent = '₱' + (d).toLocaleString('en-PH',{minimumFractionDigits:2})
+      document.getElementById('hourlyDisplay').textContent = '₱' + (h).toLocaleString('en-PH',{minimumFractionDigits:2})
     } else if (rateMode === 'hourly') {
-      document.getElementById('dailyDisplayH').textContent = peso(d)
-      document.getElementById('monthlyDisplayH').textContent = peso(d * 26)
-    } else {
-      document.getElementById('stHourlyDisplay').textContent = peso(h)
-      document.getElementById('stDailyDisplay').textContent = peso(d)
+      document.getElementById('dailyDisplayH').textContent = '₱' + (d).toLocaleString('en-PH',{minimumFractionDigits:2})
+      document.getElementById('monthlyDisplayH').textContent = '₱' + (d * 26).toLocaleString('en-PH',{minimumFractionDigits:2})
+    } else if (rateMode === 'straight') {
+      document.getElementById('stHourlyDisplay').textContent = '₱' + (h).toLocaleString('en-PH',{minimumFractionDigits:2})
+      document.getElementById('stDailyDisplay').textContent = '₱' + (d).toLocaleString('en-PH',{minimumFractionDigits:2})
     }
   }
 
-  const peso = (v) => '₱' + Math.abs(v).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})
+  useEffect(() => {
+    updateRateInfo()
+  })
 
-  const addRow = (d = null) => {
-    const newEntry = d || { date: '', type: 'regular', reg: 8, ot: 0, status: '' }
-    setEntries([...entries, newEntry])
+  const addRow = () => {
+    setEntries([...entries, { date: '', type: 'regular', reg: 8, ot: 0, status: '' }])
   }
 
   const updateEntry = (index, field, value) => {
@@ -82,27 +96,36 @@ function App() {
     showToast('✓ All rows cleared')
   }
 
+  const goHome = (e) => {
+    if (e) e.preventDefault()
+    navigate('/')
+  }
+
   const loadSample = () => {
     if (entries.length > 0 && !window.confirm('This will replace all current entries. Continue?')) return
-    const year = new Date().getFullYear()
-    const sample = [
-      { date: `${year}-04-14`, type: 'regular', reg: 8, ot: 0, status: '' },
-      { date: `${year}-04-15`, type: 'regular', reg: 8, ot: 0, status: '' },
-      { date: `${year}-04-16`, type: 'regular', reg: 8, ot: 0, status: 'WFH' },
-      { date: `${year}-04-17`, type: 'regular', reg: 8, ot: 0, status: '' },
-      { date: `${year}-04-18`, type: 'rest_day', reg: 0, ot: 0, status: '' },
-      { date: `${year}-04-19`, type: 'rest_day', reg: 0, ot: 0, status: '' },
-      { date: `${year}-04-20`, type: 'regular', reg: 8, ot: 0, status: 'WFH' },
-      { date: `${year}-04-21`, type: 'regular', reg: 8, ot: 0, status: '' },
-      { date: `${year}-04-22`, type: 'regular', reg: 8, ot: 0, status: '' },
-      { date: `${year}-04-23`, type: 'regular', reg: 8, ot: 0, status: '' },
-      { date: `${year}-04-24`, type: 'regular', reg: 8, ot: 0, status: 'WFH' },
-      { date: `${year}-04-25`, type: 'rest_day', reg: 0, ot: 0, status: '' },
-      { date: `${year}-04-26`, type: 'rest_day', reg: 0, ot: 0, status: '' },
-      { date: `${year}-04-27`, type: 'regular', reg: 8, ot: 1, status: '' },
-    ]
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const isFirst = period === '1-15'
+    const start = isFirst ? 1 : 16
+    const end = isFirst ? 15 : new Date(year, now.getMonth() + 1, 0).getDate()
+    const pad = (n) => String(n).padStart(2, '0')
+    const sample = []
+    for (let d = start; d <= end; d++) {
+      const dow = new Date(year, now.getMonth(), d).getDay()
+      const isWeekend = dow === 0 || dow === 6
+      const isWFH = !isWeekend && d % 4 === 0
+      const hasOT = !isWeekend && d === end - 2
+      sample.push({
+        date: `${year}-${month}-${pad(d)}`,
+        type: isWeekend ? 'rest_day' : 'regular',
+        reg: isWeekend ? 0 : 8,
+        ot: hasOT ? 1 : 0,
+        status: isWFH ? 'WFH' : '',
+      })
+    }
     setEntries(sample)
-    showToast('✓ Sample data loaded')
+    showToast(`✓ Sample data loaded (${period})`)
   }
 
   const compute = async () => {
@@ -117,8 +140,7 @@ function App() {
       const payload = {
         rateMode,
         dtrEntries: entries.map(e => ({
-          date: e.date,
-          type: e.type,
+          date: e.date, type: e.type,
           reg: Number(e.reg) || 0,
           ot: Number(e.ot) || 0,
           status: e.status
@@ -131,12 +153,22 @@ function App() {
         tax: Number(deductions.tax) || 0,
         otherDeductions: Number(deductions.other) || 0,
       }
-      
+
       if (rateMode === 'monthly') payload.monthlySalary = Number(monthlySalary)
       if (rateMode === 'hourly') payload.fixedHourly = Number(fixedHourly)
       if (rateMode === 'straight') {
         payload.stHours = Number(stHours)
         payload.stPay = Number(stPay)
+      }
+      if (rateMode === 'simple') {
+        payload.fixedHourly = Number(fixedHourly)
+        payload.simpleRegHours = Number(simpleCats.reg) || 0
+        payload.simpleRestHours = Number(simpleCats.rest) || 0
+        payload.simpleSpecialHours = Number(simpleCats.special) || 0
+        payload.simpleSpecialRestHours = Number(simpleCats.specialRest) || 0
+        payload.simpleLegalHours = Number(simpleCats.legal) || 0
+        payload.simpleLegalRestHours = Number(simpleCats.legalRest) || 0
+        payload.simpleLegalUnworked = Number(simpleCats.legalUnworked) || 0
       }
 
       const res = await fetch('/api/compute', {
@@ -154,38 +186,6 @@ function App() {
       const r = await res.json()
       setResult(r)
       showToast('✓ Payslip computed successfully')
-      
-      // Update UI elements
-      document.getElementById('mWorkDays').textContent = r.workDays
-      document.getElementById('mRegHrs').textContent = r.totalRegHrs.toFixed(2)
-      document.getElementById('mOTHrs').textContent = r.totalOTHrs.toFixed(2)
-      document.getElementById('mHourly').textContent = peso(r.hourlyRate)
-      document.getElementById('mGross').textContent = peso(r.grossPay)
-      document.getElementById('mDeduct').textContent = peso(r.totalDeductions)
-      document.getElementById('mNet').textContent = peso(r.netPay)
-      
-      document.getElementById('psName').textContent = r.employeeName
-      document.getElementById('psMeta').textContent = empName || 'Employee'
-      document.getElementById('psPeriod').textContent = r.period
-      document.getElementById('psMonthly').textContent = r.baseLabel || ''
-      
-      document.getElementById('psEarnings').innerHTML = r.earnings.map(e =>
-        `<div class="ps-row"><span class="ps-label">${e.label}</span><span class="ps-amt">${peso(e.amount)}</span></div>`
-      ).join('') || '<div class="ps-row" style="color:var(--ink3);font-size:12px">No earnings recorded.</div>'
-      
-      document.getElementById('psGross').textContent = peso(r.grossPay)
-      
-      document.getElementById('psDeductions').innerHTML = r.deductions.map(d =>
-        `<div class="ps-row deduct"><span class="ps-label">− ${d.label}</span><span class="ps-amt">${peso(d.amount)}</span></div>`
-      ).join('') || '<div class="ps-row" style="color:var(--ink3);font-size:12px">No deductions.</div>'
-      
-      document.getElementById('psTotalDeduct').textContent = peso(r.totalDeductions)
-      document.getElementById('psNet').textContent = peso(r.netPay)
-      document.getElementById('psNetLabel').textContent = `${r.employeeName} · Period ${r.period} · ${r.workDays} days`
-      
-      const resultsEl = document.getElementById('results')
-      resultsEl.classList.add('show')
-      resultsEl.style.display = 'block'
     } catch (e) {
       showToast('⚠ Connection error: ' + e.message)
     } finally {
@@ -193,22 +193,15 @@ function App() {
     }
   }
 
-  const printPayslip = async () => {
+  const printPayslip = () => {
     if (!result) return
-    try {
-      const res = await fetch('/api/print-payslip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result)
-      })
-      if (!res.ok) throw new Error('Server error: ' + res.status)
-      const html = await res.text()
-      const pw = window.open('', '_blank')
-      pw.document.write(html)
-      pw.document.close()
-    } catch (e) {
-      showToast('⚠ Error generating payslip: ' + e.message)
-    }
+    setPrintHtml(buildPrintHtml(result, empPosition))
+    setShowPrintModal(true)
+  }
+
+  const handlePrintFrame = () => {
+    const frame = printFrameRef.current
+    if (frame) frame.contentWindow.print()
   }
 
   const downloadTxt = () => {
@@ -220,19 +213,14 @@ function App() {
     const sep = '='.repeat(52)
     const thin = '-'.repeat(52)
     let txt = `${sep}\n  PAYSLIP — ${r.employeeName}\n  Period: ${r.period}\n${thin}\n  EARNINGS\n${thin}\n`
-
     r.earnings.forEach(e => {
       txt += `  ${e.label.padEnd(32)}₱${e.amount.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}\n`
     })
-
     txt += `${thin}\n  ${'Gross Pay'.padEnd(32)}₱${r.grossPay.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}\n${thin}\n  DEDUCTIONS\n${thin}\n`
-
     r.deductions.forEach(d => {
       txt += `  − ${d.label.padEnd(30)}₱${d.amount.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}\n`
     })
-
     txt += `${thin}\n  ${'Total Deductions'.padEnd(32)}₱${r.totalDeductions.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}\n${sep}\n  ${'NET PAY'.padEnd(32)}₱${r.netPay.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}\n${sep}\n`
-
     const a = document.createElement('a')
     a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(txt)
     a.download = `payslip_${r.employeeName.replace(/\s+/g,'_')}_${r.period}.txt`
@@ -243,7 +231,8 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <a href="/" style={{display:'inline-flex',alignItems:'center',gap:'6px',textDecoration:'none',color:'#fff',marginRight:'14px',fontSize:'13px',fontWeight:'500',padding:'6px 12px',borderRadius:'6px',background:'rgba(255,255,255,0.08)',transition:'background 0.15s'}}>
+        <a href="#" onClick={goHome}
+           style={{display:'inline-flex',alignItems:'center',gap:'6px',textDecoration:'none',color:'#fff',marginRight:'14px',fontSize:'13px',fontWeight:'500',padding:'6px 12px',borderRadius:'6px',background:'rgba(255,255,255,0.08)',transition:'background 0.15s'}}>
           <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
           Home
         </a>
@@ -281,7 +270,7 @@ function App() {
             </div>
             <div className="field">
               <label>Position / Department</label>
-              <input placeholder="e.g. Clerk · Accounting"/>
+              <input value={empPosition} onChange={e => setEmpPosition(e.target.value)} placeholder="e.g. Clerk · Accounting"/>
             </div>
           </div>
 
@@ -289,15 +278,16 @@ function App() {
           <div style={{marginBottom:'14px'}}>
             <div style={{fontSize:'11px',fontWeight:'500',letterSpacing:'.06em',textTransform:'uppercase',color:'var(--ink3)',marginBottom:'8px'}}>Rate input mode</div>
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              <button className={`rate-mode-btn ${rateMode === 'monthly' ? 'active' : ''}`} onClick={() => { setRateMode('monthly'); updateRateInfo() }}>📅 Monthly salary</button>
-              <button className={`rate-mode-btn ${rateMode === 'hourly' ? 'active' : ''}`} onClick={() => { setRateMode('hourly'); updateRateInfo() }}>⏱ Fixed hourly rate</button>
-              <button className={`rate-mode-btn ${rateMode === 'straight' ? 'active' : ''}`} onClick={() => { setRateMode('straight'); updateRateInfo() }}>📋 Straight time (hrs ÷ pay)</button>
+              <button className={`rate-mode-btn ${rateMode === 'monthly' ? 'active' : ''}`} onClick={() => { setRateMode('monthly'); updateRateInfo() }} data-tip="Enter monthly salary; hourly &amp; daily rates computed automatically">📅 Monthly salary</button>
+              <button className={`rate-mode-btn ${rateMode === 'hourly' ? 'active' : ''}`} onClick={() => { setRateMode('hourly'); updateRateInfo() }} data-tip="Set a fixed hourly rate directly">⏱ Fixed hourly rate</button>
+              <button className={`rate-mode-btn ${rateMode === 'straight' ? 'active' : ''}`} onClick={() => { setRateMode('straight'); updateRateInfo() }} data-tip="Enter total hours &amp; pay to derive hourly rate">📋 Straight time (hrs ÷ pay)</button>
+              <button className={`rate-mode-btn ${rateMode === 'simple' ? 'active' : ''}`} onClick={() => { setRateMode('simple'); updateRateInfo() }} data-tip="Enter totals per day type; DOLE multipliers applied">⚡ Simple (hours × rate)</button>
             </div>
           </div>
 
           {/* Monthly mode */}
           {rateMode === 'monthly' && (
-            <div id="mode-monthly">
+            <div>
               <div className="fg fg-2">
                 <div className="field">
                   <label>Monthly basic salary (₱)</label>
@@ -305,8 +295,8 @@ function App() {
                 </div>
                 <div style={{display:'flex',alignItems:'flex-end',paddingBottom:'2px'}}>
                   <div style={{padding:'10px 14px',background:'#f0f7ff',borderRadius:'8px',fontSize:'12px',color:'var(--ink3)',display:'flex',gap:'1.5rem',flexWrap:'wrap',width:'100%'}}>
-                    <span>📊 Daily: <strong id="dailyDisplay" style={{color:'var(--ink)'}}>₱769.23</strong></span>
-                    <span>⏱ Hourly: <strong id="hourlyDisplay" style={{color:'var(--ink)'}}>₱96.15</strong></span>
+                    <span>📊 Daily: <strong id="dailyDisplay" style={{color:'var(--ink)'}}>₱800.00</strong></span>
+                    <span>⏱ Hourly: <strong id="hourlyDisplay" style={{color:'var(--ink)'}}>₱100.00</strong></span>
                   </div>
                 </div>
               </div>
@@ -315,7 +305,7 @@ function App() {
 
           {/* Hourly mode */}
           {rateMode === 'hourly' && (
-            <div id="mode-hourly">
+            <div>
               <div className="fg fg-2">
                 <div className="field">
                   <label>Fixed hourly rate (₱)</label>
@@ -323,8 +313,8 @@ function App() {
                 </div>
                 <div style={{display:'flex',alignItems:'flex-end',paddingBottom:'2px'}}>
                   <div style={{padding:'10px 14px',background:'#f0f7ff',borderRadius:'8px',fontSize:'12px',color:'var(--ink3)',display:'flex',gap:'1.5rem',flexWrap:'wrap',width:'100%'}}>
-                    <span>📊 Daily (×8): <strong id="dailyDisplayH" style={{color:'var(--ink)'}}>₱900.00</strong></span>
-                    <span>📅 Monthly equiv: <strong id="monthlyDisplayH" style={{color:'var(--ink)'}}>₱23,400.00</strong></span>
+                    <span>📊 Daily (×8): <strong id="dailyDisplayH" style={{color:'var(--ink)'}}>₱800.00</strong></span>
+                    <span>📅 Monthly equiv: <strong id="monthlyDisplayH" style={{color:'var(--ink)'}}>₱20,800.00</strong></span>
                   </div>
                 </div>
               </div>
@@ -333,7 +323,7 @@ function App() {
 
           {/* Straight time mode */}
           {rateMode === 'straight' && (
-            <div id="mode-straight">
+            <div>
               <div className="fg fg-3">
                 <div className="field">
                   <label>Straight time hours</label>
@@ -345,276 +335,77 @@ function App() {
                 </div>
                 <div style={{display:'flex',alignItems:'flex-end',paddingBottom:'2px'}}>
                   <div style={{padding:'10px 14px',background:'#ecfdf5',border:'1px solid #a7f3d0',borderRadius:'8px',fontSize:'12px',color:'var(--ink3)',width:'100%'}}>
-                    <div>⏱ Computed hourly: <strong id="stHourlyDisplay" style={{color:'var(--green)'}}>₱112.50</strong></div>
-                    <div style={{marginTop:'3px'}}>📊 Daily (×8): <strong id="stDailyDisplay" style={{color:'var(--green)'}}>₱900.00</strong></div>
+                    <div>⏱ Computed hourly: <strong id="stHourlyDisplay" style={{color:'var(--green)'}}>₱100.00</strong></div>
+                    <div style={{marginTop:'3px'}}>📊 Daily (×8): <strong id="stDailyDisplay" style={{color:'var(--green)'}}>₱800.00</strong></div>
                   </div>
                 </div>
               </div>
               <div style={{marginTop:'8px',padding:'8px 12px',background:'var(--gold-bg)',borderRadius:'7px',fontSize:'12px',color:'var(--gold)'}}>
-                💡 e.g. ₱9,000 ÷ 80 hrs = <strong>₱112.50/hr</strong> — this rate will be used for all OT and holiday multipliers
+                💡 e.g. ₱8,000 ÷ 80 hrs = <strong>₱100.00/hr</strong> — this rate will be used for all OT and holiday multipliers
               </div>
             </div>
           )}
         </div>
 
-        {/* DTR Entries */}
-        <div className="card" style={{animationDelay:'.1s'}}>
-          <div className="card-head">
-            <div className="card-icon gold">📋</div>
-            <div><h2>Daily Time Record</h2><span>Enter each day's attendance and hours</span></div>
-          </div>
-          <div className="dtr-wrap">
-            <table className="dtr-table">
-              <thead>
-                <tr>
-                  <th style={{minWidth:'120px'}}>Date</th>
-                  <th style={{minWidth:'190px'}}>Day type</th>
-                  <th>Reg hrs</th>
-                  <th>OT hrs</th>
-                  <th style={{minWidth:'90px'}}>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry, idx) => (
-                  <tr key={idx}>
-                    <td><input type="date" value={entry.date} onChange={e => updateEntry(idx, 'date', e.target.value)} style={{minWidth:'140px'}}/></td>
-                    <td>
-                      <select value={entry.type} onChange={e => updateEntry(idx, 'type', e.target.value)} style={{minWidth:'170px'}}>
-                        {DAY_TYPES.map(dt => <option key={dt.v} value={dt.v}>{dt.l}</option>)}
-                      </select>
-                    </td>
-                    <td className="num"><input type="number" value={entry.reg} onChange={e => updateEntry(idx, 'reg', e.target.value)} min="0" max="24" step="0.5"/></td>
-                    <td className="num"><input type="number" value={entry.ot} onChange={e => updateEntry(idx, 'ot', e.target.value)} min="0" max="24" step="0.5"/></td>
-                    <td>
-                      <select value={entry.status} onChange={e => updateEntry(idx, 'status', e.target.value)} style={{minWidth:'88px'}}>
-                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s || '— normal —'}</option>)}
-                      </select>
-                    </td>
-                    <td><button className="btn-del" onClick={() => removeRow(idx)}>×</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="btn-row">
-            <button className="btn-add-row" onClick={() => addRow()}>＋ Add row</button>
-            <button className="btn-add-row" onClick={loadSample}>Load sample</button>
-            <button className="btn-add-row" style={{marginLeft:'8px',background:'var(--red-bg)',borderColor:'var(--red)',color:'var(--red)'}} onClick={clearAllRows}>Clear all</button>
-          </div>
-        </div>
+        {/* DTR or Simple mode */}
+        {rateMode === 'simple' ? (
+          <SimpleMode
+            simpleCats={simpleCats}
+            fixedHourly={fixedHourly}
+            onCatChange={(key, val) => setSimpleCats({ ...simpleCats, [key]: val })}
+            onFixedHourlyChange={e => setFixedHourly(e.target.value)}
+          />
+        ) : (
+          <DTRTable
+            entries={entries}
+            onUpdateEntry={updateEntry}
+            onRemoveRow={removeRow}
+            onAddRow={addRow}
+            onLoadSample={loadSample}
+            onClearAll={clearAllRows}
+          />
+        )}
 
-        {/* Deductions */}
-        <div className="card" style={{animationDelay:'.15s'}}>
-          <div className="card-head">
-            <div className="card-icon red">📉</div>
-            <div><h2>Deductions</h2><span>Government contributions and other deductions</span></div>
-          </div>
-          <div className="fg fg-3">
-            <div className="field"><label>SSS contribution (₱)</label><input type="number" value={deductions.sss} onChange={e => setDeductions({...deductions, sss: e.target.value})} min="0" placeholder="0.00"/></div>
-            <div className="field"><label>PhilHealth (₱)</label><input type="number" value={deductions.philhealth} onChange={e => setDeductions({...deductions, philhealth: e.target.value})} min="0" placeholder="0.00"/></div>
-            <div className="field"><label>Pag-IBIG (₱)</label><input type="number" value={deductions.pagibig} onChange={e => setDeductions({...deductions, pagibig: e.target.value})} min="0" placeholder="0.00"/></div>
-          </div>
-          <div className="fg fg-2" style={{marginTop:'12px'}}>
-            <div className="field"><label>Withholding tax (₱)</label><input type="number" value={deductions.tax} onChange={e => setDeductions({...deductions, tax: e.target.value})} min="0" placeholder="0.00"/></div>
-            <div className="field"><label>Other deductions (₱)</label><input type="number" value={deductions.other} onChange={e => setDeductions({...deductions, other: e.target.value})} min="0" placeholder="0.00"/></div>
-          </div>
-        </div>
+        <DeductionsForm deductions={deductions} onChange={setDeductions} />
 
-        {/* Compute */}
         <button className="btn-compute" onClick={compute} disabled={loading}>
           {loading ? 'Computing…' : 'Compute salary'}
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
         </button>
 
-        {/* Results */}
-        <div id="results">
-          {/* Metrics row */}
-          <div className="metrics" style={{marginTop:'1.5rem'}}>
-            <div className="metric">
-              <div className="m-label">Work days</div>
-              <div className="m-val" id="mWorkDays">—</div>
-              <div className="m-sub">days recorded</div>
-            </div>
-            <div className="metric">
-              <div className="m-label">Hourly rate</div>
-              <div className="m-val" id="mHourly">—</div>
-              <div className="m-sub">per hour</div>
-            </div>
-            <div className="metric">
-              <div className="m-label">Regular hours</div>
-              <div className="m-val" id="mRegHrs">—</div>
-              <div className="m-sub">total hours</div>
-            </div>
-            <div className="metric">
-              <div className="m-label">OT hours</div>
-              <div className="m-val" id="mOTHrs">—</div>
-              <div className="m-sub">total hours</div>
-            </div>
-          </div>
-          
-          <div className="metrics" style={{marginTop:'1.5rem'}}>
-            <div className="metric accent">
-              <div className="m-label">Gross pay</div>
-              <div className="m-val" id="mGross">—</div>
-              <div className="m-sub">before deductions</div>
-            </div>
-            <div className="metric">
-              <div className="m-label">Deductions</div>
-              <div className="m-val" id="mDeduct" style={{color:'var(--red)'}}>—</div>
-              <div className="m-sub">total withheld</div>
-            </div>
-            <div className="metric green">
-              <div className="m-label">Net pay</div>
-              <div className="m-val" id="mNet">—</div>
-              <div className="m-sub">take-home amount</div>
-            </div>
-          </div>
+        <Results result={result} empPosition={empPosition} onPrint={printPayslip} onDownload={downloadTxt} />
 
-          {/* Payslip */}
-          <div id="payslip-card" className="card">
-            <div className="payslip" id="payslipDoc">
-              <div className="payslip-header">
-                <div>
-                  <div style={{fontSize:'10px',letterSpacing:'.1em',textTransform:'uppercase',color:'#6b7280',marginBottom:'4px'}}>Official Payslip</div>
-                  <div className="emp-name" id="psName">—</div>
-                  <div className="emp-meta" id="psMeta">—</div>
-                </div>
-                <div style={{display:'flex',gap:'10px'}}>
-                  <div className="payslip-badge">
-                    <div className="bd-label">Period</div>
-                    <div className="bd-val" id="psPeriod">—</div>
-                  </div>
-                  <div className="payslip-badge">
-                    <div className="bd-label">Monthly</div>
-                    <div className="bd-val" id="psMonthly">—</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="ps-body">
-                <div className="ps-section">
-                  <div className="ps-section-title">Earnings</div>
-                  <div id="psEarnings"></div>
-                </div>
-                <div className="ps-divider"></div>
-                <div className="ps-total">
-                  <span className="ps-label">Gross Pay</span>
-                  <span className="ps-amt" id="psGross">—</span>
-                </div>
-                <div className="ps-section" style={{marginTop:'1rem'}}>
-                  <div className="ps-section-title">Deductions</div>
-                  <div id="psDeductions"></div>
-                </div>
-                <div className="ps-divider"></div>
-                <div className="ps-total">
-                  <span className="ps-label">Total Deductions</span>
-                  <span className="ps-amt" style={{color:'var(--red)'}} id="psTotalDeduct">—</span>
-                </div>
-                <div className="ps-net">
-                  <div>
-                    <div className="label">NET PAY</div>
-                    <div style={{fontSize:'11px',color:'#6b7280',marginTop:'1px'}} id="psNetLabel">—</div>
-                  </div>
-                  <div className="amount" id="psNet">—</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="action-row">
-              <button className="btn-action btn-print" onClick={printPayslip}>🖨 Print payslip</button>
-              <button className="btn-action btn-download" onClick={downloadTxt}>⬇ Download .txt</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Rate Reference */}
-        <div className="card" style={{marginTop:'2rem',animationDelay:'.25s'}}>
-          <div className="card-head">
-            <div className="card-icon green">📖</div>
-            <div><h2>DOLE Pay Rate Reference</h2><span>Multipliers used in this calculator</span></div>
-          </div>
-          <div className="rate-grid">
-            <div className="rate-card">
-              <div className="rc-type">Regular workday</div>
-              <div className="rc-row"><span>Regular hours</span><span>×1.00</span></div>
-              <div className="rc-row"><span>Overtime</span><span>×1.25</span></div>
-            </div>
-            <div className="rate-card">
-              <div className="rc-type">Rest day (worked)</div>
-              <div className="rc-row"><span>Regular hours</span><span>×1.30</span></div>
-              <div className="rc-row"><span>Overtime</span><span>×1.69</span></div>
-            </div>
-            <div className="rate-card">
-              <div className="rc-type">Special holiday</div>
-              <div className="rc-row"><span>Regular hours</span><span>×1.30</span></div>
-              <div className="rc-row"><span>Overtime</span><span>×1.69</span></div>
-            </div>
-            <div className="rate-card">
-              <div className="rc-type">Special hol. (rest day)</div>
-              <div className="rc-row"><span>Regular hours</span><span>×1.50</span></div>
-              <div className="rc-row"><span>Overtime</span><span>×1.95</span></div>
-            </div>
-            <div className="rate-card">
-              <div className="rc-type">Legal holiday (worked)</div>
-              <div className="rc-row"><span>Regular hours</span><span>×2.00</span></div>
-              <div className="rc-row"><span>Overtime</span><span>×2.60</span></div>
-            </div>
-            <div className="rate-card">
-              <div className="rc-type">Legal hol. (rest day)</div>
-              <div className="rc-row"><span>Regular hours</span><span>×2.60</span></div>
-              <div className="rc-row"><span>Overtime</span><span>×3.38</span></div>
-            </div>
-            <div className="rate-card">
-              <div className="rc-type">Legal hol. (unworked)</div>
-              <div className="rc-row"><span>Still receives</span><span>Full day</span></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <footer className="footer">
-          <div className="footer-inner">
-            <div className="footer-brand">
-              <div className="footer-logo-mark">₱</div>
-              <div>
-                <div className="footer-logo-name">PaySlip PH</div>
-                <div className="footer-logo-sub">DOLE-compliant payroll calculator</div>
-              </div>
-            </div>
-            <div className="footer-links">
-              <a href="/" className="footer-link">Home</a>
-              <span className="footer-dot">·</span>
-              <a href="#" className="footer-link" onClick={(e) => { e.preventDefault(); setShowTerms(true) }}>Terms of Use</a>
-              <span className="footer-dot">·</span>
-              <span className="footer-copy">© 2026 PaySlip PH</span>
-            </div>
-          </div>
-        </footer>
+        <RateReference />
+        <Footer onShowTerms={() => setShowTerms(true)} onHome={goHome} />
       </div>
 
-      {/* Terms of Use Modal */}
-      {showTerms && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowTerms(false) }}>
-          <div className="modal">
-            <div className="modal-header">
-              <h3>Terms of Use</h3>
-              <button className="modal-close" onClick={() => setShowTerms(false)} aria-label="Close">×</button>
-            </div>
-            <div className="modal-body">
-              <h4>1. Purpose</h4>
-              <p>PaySlip PH is a payroll calculation tool designed to assist Philippine employers in computing employee salaries in accordance with Department of Labor and Employment (DOLE) labor standards.</p>
-              <h4>2. Accuracy Disclaimer</h4>
-              <p>While every effort has been made to ensure that calculations reflect current DOLE multipliers and Philippine labor regulations, PaySlip PH does not guarantee the accuracy, completeness, or timeliness of its computations.</p>
-              <h4>3. No Legal Advice</h4>
-              <p>This software is provided for informational purposes only and does not constitute legal, tax, or professional advice.</p>
-              <h4>4. Data Privacy</h4>
-              <p>All calculations are performed locally. No personal data is stored or transmitted.</p>
-              <p style={{color:'var(--ink3)',marginTop:'1.5rem',fontSize:'13px'}}><em>Last updated: May 2026</em></p>
-            </div>
-          </div>
-        </div>
+      {showScrollBtn && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          style={{
+            position: 'fixed', bottom: '24px', right: '24px', zIndex: 50,
+            width: '44px', height: '44px', borderRadius: '50%',
+            background: 'var(--accent)', color: '#fff', border: 'none',
+            cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'opacity .2s'
+          }}
+          aria-label="Scroll to top">
+          <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 448 512" width="18" height="18">
+            <path d="M34.9 289.5l-22.2-22.2c-9.4-9.4-9.4-24.6 0-33.9L207 39c9.4-9.4 24.6-9.4 33.9 0l194.3 194.3c9.4 9.4 9.4 24.6 0 33.9L413 289.4c-9.5 9.5-25 9.3-34.3-.4L264 168.6V456c0 13.3-10.7 24-24 24h-32c-13.3 0-24-10.7-24-24V168.6L69.2 289.1c-9.3 9.8-24.8 10-34.3.4z"/>
+          </svg>
+        </button>
       )}
+
+      <PrintModal
+        ref={printFrameRef}
+        show={showPrintModal}
+        printHtml={printHtml}
+        onClose={() => setShowPrintModal(false)}
+        onPrint={handlePrintFrame}
+      />
+
+      <TermsModal show={showTerms} onClose={() => setShowTerms(false)} />
     </div>
   )
 }
