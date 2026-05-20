@@ -5,7 +5,8 @@ import time
 from collections import defaultdict
 from functools import wraps
 
-from flask import request, jsonify, render_template
+import os
+from flask import request, jsonify, send_from_directory
 from markupsafe import escape
 from app.payroll import PayrollCalculator, DTREntry, DayType, PayPeriod, Deductions
 from app import app
@@ -109,46 +110,38 @@ DAY_TYPE_MAP = {
     "absent":        DayType.ABSENT,
 }
 VALID_PERIODS = {"1-15", "16-30"}
-VALID_RATE_MODES = {"monthly", "hourly", "straight"}
+VALID_RATE_MODES = {"monthly", "hourly", "straight", "simple"}
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
-@app.route("/")
-def landing():
-    return render_template("landing.html")
+DIST_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
-@app.route("/calculator")
-def calculator():
-    return render_template("index.html")
+@app.route("/api")
+def api_index():
+    return jsonify({"message": "PaySlip PH API is running."})
+
+@app.route("/")
+def serve_app():
+    index = os.path.join(DIST_DIR, "index.html")
+    if os.path.exists(index):
+        return send_from_directory(DIST_DIR, "index.html")
+    return jsonify({"error": "Frontend not built. Run: cd frontend && npm run build"}), 503
+
+@app.route("/assets/<path:filename>")
+def serve_assets(filename):
+    assets_dir = os.path.join(DIST_DIR, "assets")
+    if os.path.exists(os.path.join(assets_dir, filename)):
+        return send_from_directory(assets_dir, filename)
+    return jsonify({"error": "Not found"}), 404
 
 @app.route("/favicon.svg")
-def favicon():
+def serve_favicon():
+    f = os.path.join(DIST_DIR, "favicon.svg")
+    if os.path.exists(f):
+        return send_from_directory(DIST_DIR, "favicon.svg")
     return app.send_static_file("favicon.svg")
 
-@app.route("/print-payslip", methods=["POST"])
-def print_payslip():
-    """Render printable payslip from POST data."""
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    return render_template(
-        "payslip_print.html",
-        employee_name=data.get("employeeName", "Employee"),
-        period=data.get("period", "—"),
-        work_days=data.get("workDays", 0),
-        hourly_rate=data.get("hourlyRate", 0),
-        total_reg_hrs=data.get("totalRegHrs", 0),
-        total_ot_hrs=data.get("totalOTHrs", 0),
-        earnings=data.get("earnings", []),
-        deductions=data.get("deductions", []),
-        gross_pay=data.get("grossPay", 0),
-        total_deductions=data.get("totalDeductions", 0),
-        net_pay=data.get("netPay", 0),
-        base_label=data.get("baseLabel", "")
-    )
-
-@app.route("/compute", methods=["POST"])
+@app.route("/api/compute", methods=["POST"])
 @rate_limit
 def compute():
     """Compute payroll from validated JSON input."""
@@ -166,6 +159,9 @@ def compute():
         "rateMode", "monthlySalary", "fixedHourly", "stHours", "stPay",
         "dtrEntries", "sss", "philhealth", "pagibig", "tax",
         "otherDeductions", "period", "empName",
+        "simpleRegHours", "simpleRestHours", "simpleSpecialHours",
+        "simpleSpecialRestHours", "simpleLegalHours", "simpleLegalRestHours",
+        "simpleLegalUnworked",
     }
     extra_keys = set(data.keys()) - ALLOWED_KEYS
     if extra_keys:
@@ -176,6 +172,88 @@ def compute():
     if rate_mode not in VALID_RATE_MODES:
         return jsonify({"error": "Invalid rate mode"}), 400
 
+    # ── Simple mode: categorized hours × DOLE multipliers, no DTR ──
+    if rate_mode == "simple":
+        SIMPLE_FIELDS = {
+            "simpleRegHours": 1.00,
+            "simpleRestHours": 1.30,
+            "simpleSpecialHours": 1.30,
+            "simpleSpecialRestHours": 1.50,
+            "simpleLegalHours": 2.00,
+            "simpleLegalRestHours": 2.60,
+            "simpleLegalUnworked": 1.00,
+        }
+        CAT_LABELS = {
+            "simpleRegHours": "Regular pay",
+            "simpleRestHours": "Rest day pay",
+            "simpleSpecialHours": "Special holiday pay",
+            "simpleSpecialRestHours": "Special holiday (rest day) pay",
+            "simpleLegalHours": "Legal holiday pay",
+            "simpleLegalRestHours": "Legal holiday (rest day) pay",
+            "simpleLegalUnworked": "Legal holiday (unworked)",
+        }
+        try:
+            hourly_rate = float(data.get("fixedHourly", 0))
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({"error": "Invalid hourly rate"}), 400
+        if hourly_rate < 0 or hourly_rate > MAX_SALARY / (8 * 26):
+            return jsonify({"error": "Invalid hourly rate"}), 400
+        try:
+            sss = float(data.get("sss", 0))
+            philhealth = float(data.get("philhealth", 0))
+            pagibig = float(data.get("pagibig", 0))
+            wtax = float(data.get("tax", 0))
+            other = float(data.get("otherDeductions", 0))
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({"error": "Invalid deduction values"}), 400
+        period_str = str(data.get("period", ""))
+        if period_str not in VALID_PERIODS:
+            return jsonify({"error": "Invalid pay period"}), 400
+        emp_name = str(data.get("empName", "Employee"))[:MAX_NAME_LENGTH]
+        earnings = []
+        gross = 0.0
+        total_hours = 0.0
+        for field, mult in SIMPLE_FIELDS.items():
+            try:
+                val = float(data.get(field, 0))
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if val < 0:
+                return jsonify({"error": f"Invalid {field}"}), 400
+            h = val * 8 if field == "simpleLegalUnworked" else val
+            amt = h * hourly_rate * mult
+            if amt > 0:
+                earnings.append({"label": CAT_LABELS[field], "amount": round(amt, 2)})
+            gross += amt
+            total_hours += h
+        total_ded = sss + philhealth + pagibig + wtax + other
+        net = max(round(gross, 2) - total_ded, 0)
+        ded_rows = []
+        if sss > 0:
+            ded_rows.append({"label": "SSS contribution", "amount": sss})
+        if philhealth > 0:
+            ded_rows.append({"label": "PhilHealth contribution", "amount": philhealth})
+        if pagibig > 0:
+            ded_rows.append({"label": "Pag-IBIG contribution", "amount": pagibig})
+        if wtax > 0:
+            ded_rows.append({"label": "Withholding tax", "amount": wtax})
+        if other > 0:
+            ded_rows.append({"label": "Other deductions", "amount": other})
+        return jsonify({
+            "employeeName": emp_name,
+            "period": period_str,
+            "hourlyRate": hourly_rate,
+            "workDays": 0,
+            "totalRegHrs": round(total_hours, 2),
+            "totalOTHrs": 0,
+            "grossPay": round(gross, 2),
+            "totalDeductions": total_ded,
+            "netPay": round(net, 2),
+            "earnings": earnings,
+            "deductions": ded_rows,
+            "baseLabel": None,
+        })
+
     # ── Validate salary ──
     try:
         if rate_mode == "monthly":
@@ -185,7 +263,7 @@ def compute():
             if fixed_hourly < 0:
                 return jsonify({"error": "Negative values not allowed"}), 400
             monthly_salary = fixed_hourly * 8 * 26
-        else:  # straight
+        else:
             st_hours = float(data.get("stHours", 1))
             st_pay = float(data.get("stPay", 0))
             if st_hours <= 0 or st_pay < 0:
