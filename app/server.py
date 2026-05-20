@@ -9,7 +9,7 @@ import time
 from collections import defaultdict
 from functools import wraps
 
-from flask import request, jsonify, redirect
+from flask import request, jsonify
 from markupsafe import escape
 from flask_cors import CORS
 from app.payroll import PayrollCalculator, DTREntry, DayType, PayPeriod, Deductions
@@ -123,11 +123,7 @@ VALID_RATE_MODES = {"monthly", "hourly", "straight"}
 
 @app.route("/")
 def index():
-    return redirect("http://localhost:3000")
-
-@app.route("/calculator")
-def calculator():
-    return redirect("http://localhost:3000/calculator")
+    return jsonify({"message": "PaySlip PH API is running."})
 
 @app.route("/favicon.svg")
 def favicon():
