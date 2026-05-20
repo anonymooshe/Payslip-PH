@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Flask API backend for the Philippine Payroll System.
-Exposes /compute endpoint consumed by the React frontend.
+Flask backend for the Philippine Payroll System.
+Serves the HTML frontend and exposes a /compute API.
 Security-hardened: rate limiting, input validation, CSP headers, error sanitization.
 """
 
@@ -17,18 +17,17 @@ from app import app
 
 CORS(app)
 
-# ─── Security config ──────────────────────────────────────────────────────────
+# ─── Security limits ─────────────────────────────────────────────────────────
 
-RATE_LIMIT_MAX = 30
-RATE_LIMIT_WINDOW = 60
-MAX_DTR_ENTRIES = 366
-MAX_PAYLOAD_BYTES = 50 * 1024
+RATE_LIMIT_MAX = 30  # Max requests per IP per window
+RATE_LIMIT_WINDOW = 60  # Time window in seconds
+MAX_DTR_ENTRIES = 366  # Max DTR entries (1 per day per year)
+MAX_PAYLOAD_BYTES = 50 * 1024  # 50KB max request body
 MAX_NAME_LENGTH = 120
 MAX_STATUS_LENGTH = 60
-MAX_SALARY = 10_000_000_000
+MAX_SALARY = 10_000_000_000  # ₱10 billion cap
 
-ip_requests: dict[str, list[float]] = defaultdict(list)
-
+ip_requests: dict[str, list[float]] = defaultdict(list)  # Rate limit storage
 
 # ─── Rate limiter ─────────────────────────────────────────────────────────────
 
@@ -47,7 +46,6 @@ def rate_limit(f):
         ip_requests[ip].append(now)
         return f(*args, **kwargs)
     return wrapper
-
 
 # ─── Security headers ─────────────────────────────────────────────────────────
 
@@ -79,7 +77,6 @@ def add_security_headers(response):
     response.headers.pop("Server", None)
     return response
 
-
 # ─── Error handlers ───────────────────────────────────────────────────────────
 
 @app.errorhandler(400)
@@ -107,7 +104,6 @@ def internal_error(e):
     """Never leak stack traces or internal details."""
     return jsonify({"error": "Internal server error"}), 500
 
-
 # ─── Valid day types (whitelist) ──────────────────────────────────────────────
 
 DAY_TYPE_MAP = {
@@ -119,9 +115,8 @@ DAY_TYPE_MAP = {
     "legal_rest":    DayType.LEGAL_RESTDAY,
     "absent":        DayType.ABSENT,
 }
-
 VALID_PERIODS = {"1-15", "16-30"}
-VALID_RATE_MODES = {"monthly", "hourly", "straight", "simple"}
+VALID_RATE_MODES = {"monthly", "hourly", "straight"}
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
@@ -130,15 +125,37 @@ VALID_RATE_MODES = {"monthly", "hourly", "straight", "simple"}
 def index():
     return redirect("http://localhost:3000")
 
-
 @app.route("/calculator")
 def calculator():
     return redirect("http://localhost:3000/calculator")
 
-
 @app.route("/favicon.svg")
 def favicon():
     return app.send_static_file("favicon.svg")
+
+
+@app.route("/print-payslip", methods=["POST"])
+def print_payslip():
+    """Render printable payslip from POST data."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    return render_template(
+        "payslip_print.html",
+        employee_name=data.get("employeeName", "Employee"),
+        period=data.get("period", "—"),
+        work_days=data.get("workDays", 0),
+        hourly_rate=data.get("hourlyRate", 0),
+        total_reg_hrs=data.get("totalRegHrs", 0),
+        total_ot_hrs=data.get("totalOTHrs", 0),
+        earnings=data.get("earnings", []),
+        deductions=data.get("deductions", []),
+        gross_pay=data.get("grossPay", 0),
+        total_deductions=data.get("totalDeductions", 0),
+        net_pay=data.get("netPay", 0),
+        base_label=data.get("baseLabel", "")
+    )
 
 
 @app.route("/compute", methods=["POST"])
@@ -417,9 +434,3 @@ def compute():
         "deductions": deduction_rows,
         "baseLabel": f"₱{monthly_salary:,.2f}/mo" if rate_mode == "monthly" else None,
     })
-
-
-if __name__ == "__main__":
-    print("  PaySlip PH backend running at http://localhost:8080")
-    # NEVER use debug=True in production
-    app.run(debug=False, port=8080, host="127.0.0.1")

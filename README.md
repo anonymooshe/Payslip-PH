@@ -1,49 +1,53 @@
 # PaySlip PH — Philippine Payroll System
 
-DOLE-compliant payroll calculator with a **React + Vite** frontend and **Flask** API backend.
+DOLE-compliant web-based payroll calculator with a Python backend and HTML/JS frontend.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────┐   POST /api/compute (Vite proxy → Flask)   ┌──────────────┐
-│  React App  │ ──────────────────────────────────────────► │  server.py   │
-│  (Vite dev) │                                            │  (Flask API)  │
-│  port 3000  │ ◄────────────────────────────────────────── │  port 8080   │
-└─────────────┘              JSON response                  └──────┬───────┘
-                                                                   │
-                                                          ┌────────▼───────┐
-                                                          │   payroll.py   │
-                                                          │  (Core engine) │
-                                                          └────────────────┘
+┌─────────────┐      POST /compute (JSON)        ┌──────────────┐
+│             │ ───────────────────────────────► │              │
+│  index.html │                                  │  server.py   │
+│  (Frontend) │ ◄─────────────────────────────── │  (Flask API) │
+│             │         Computed result          │              │
+└─────────────┘                                  └──────┬───────┘
+                                                       │
+                                              ┌────────▼───-────┐
+                                              │   payroll.py    │
+                                              │ (Core engine)   │
+                                              └─────────────────┘
 ```
 
 | File | Purpose |
 |------|---------|
-| `frontend/src/App.jsx` | React UI — DTR entries, rate modes, deductions, payslip display |
-| `app/server.py` | Flask API — `/compute` endpoint with rate limiting, validation |
-| `app/payroll.py` | Pure Python computation engine — DOLE rate multipliers |
-| `run.py` | Flask entry point |
+| `server.py` | Flask web server — serves the frontend and exposes the `/compute` REST API |
+| `index.html` | Single-page web UI — collects DTR entries, salary info, deductions, and displays the payslip |
+| `payroll.py` | Pure Python computation engine — DOLE rate multipliers, pay calculations, data models |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Python 3, Flask |
+| Frontend | HTML5, CSS3, Vanilla JavaScript |
+| Computation | Pure Python (no external math/finance libs) |
+| API | REST (JSON) |
 
 ---
 
 ## Quick Start
 
-**Terminal 1 — Backend:**
-```bash
-pip install -r requirements.txt
-python3 run.py
-```
-
-**Terminal 2 — Frontend:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open **http://localhost:3000** in your browser. The Vite dev server proxies `/api/*` calls to Flask on port 8080.
+Then open **http://localhost:8080** in your browser.
 
 ---
 
@@ -53,20 +57,31 @@ Open **http://localhost:3000** in your browser. The Vite dev server proxies `/ap
 
 **Rate modes:**
 
-| Mode | Fields | Description |
-|------|--------|-------------|
-| `monthly` | `monthlySalary` | Monthly salary ÷ 26 ÷ 8 = hourly rate |
-| `hourly` | `fixedHourly` | Direct hourly rate × 8 × 26 = monthly equiv |
-| `straight` | `stHours`, `stPay` | Derive hourly rate from straight-time total |
-| `simple` | `totalHours`, `fixedHourly` | Gross = hours × rate (no DTR needed) |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `rateMode` | string | Yes | `"monthly"`, `"hourly"`, or `"straight"` |
+| `monthlySalary` | number | if monthly | Monthly basic salary in PHP |
+| `fixedHourly` | number | if hourly | Fixed hourly rate in PHP |
+| `stHours` | number | if straight | Straight-time total hours |
+| `stPay` | number | if straight | Straight-time total pay |
+| `dtrEntries` | array | Yes | Daily Time Record entries |
+| `period` | string | Yes | `"1-15"` or `"16-30"` |
+| `empName` | string | No | Employee display name |
+| `sss` | number | No | SSS contribution |
+| `philhealth` | number | No | PhilHealth contribution |
+| `pagibig` | number | No | Pag-IBIG contribution |
+| `tax` | number | No | Withholding tax |
+| `otherDeductions` | number | No | Other deductions |
 
-**DTR entries** (`dtrEntries[]`):
+**`dtrEntries[]` object:**
 
-| Field | Values |
-|-------|--------|
-| `type` | `regular`, `rest_day`, `special`, `special_rest`, `legal`, `legal_rest`, `absent` |
-| `reg` | Regular hours (0–24) |
-| `ot` | Overtime hours (0–24) |
+| Field | Type | Description |
+|-------|------|-------------|
+| `date` | string | Display label (e.g. `"Apr 14 (Tue)"`) |
+| `type` | string | One of: `"regular"`, `"rest_day"`, `"special"`, `"special_rest"`, `"legal"`, `"legal_rest"`, `"absent"` |
+| `reg` | number | Regular hours worked |
+| `ot` | number | Overtime hours |
+| `status` | string | Optional note (e.g. `"WFH"`) |
 
 **Deductions:** `sss`, `philhealth`, `pagibig`, `tax`, `otherDeductions`
 
