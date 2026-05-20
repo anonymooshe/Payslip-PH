@@ -1,14 +1,21 @@
-# !/usr/bin/env python3
-"""Flask backend: serves frontend and exposes /compute API."""
+#!/usr/bin/env python3
+"""
+Flask backend for the Philippine Payroll System.
+Serves the HTML frontend and exposes a /compute API.
+Security-hardened: rate limiting, input validation, CSP headers, error sanitization.
+"""
 
 import time
 from collections import defaultdict
 from functools import wraps
 
-from flask import request, jsonify, render_template
+from flask import request, jsonify, redirect
 from markupsafe import escape
+from flask_cors import CORS
 from app.payroll import PayrollCalculator, DTREntry, DayType, PayPeriod, Deductions
 from app import app
+
+CORS(app)
 
 # ─── Security limits ─────────────────────────────────────────────────────────
 
@@ -111,19 +118,21 @@ DAY_TYPE_MAP = {
 VALID_PERIODS = {"1-15", "16-30"}
 VALID_RATE_MODES = {"monthly", "hourly", "straight"}
 
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.route("/")
-def landing():
-    return render_template("landing.html")
+def index():
+    return redirect("http://localhost:3000")
 
 @app.route("/calculator")
 def calculator():
-    return render_template("index.html")
+    return redirect("http://localhost:3000/calculator")
 
 @app.route("/favicon.svg")
 def favicon():
     return app.send_static_file("favicon.svg")
+
 
 @app.route("/print-payslip", methods=["POST"])
 def print_payslip():
@@ -148,6 +157,7 @@ def print_payslip():
         base_label=data.get("baseLabel", "")
     )
 
+
 @app.route("/compute", methods=["POST"])
 @rate_limit
 def compute():
@@ -166,6 +176,9 @@ def compute():
         "rateMode", "monthlySalary", "fixedHourly", "stHours", "stPay",
         "dtrEntries", "sss", "philhealth", "pagibig", "tax",
         "otherDeductions", "period", "empName",
+        "totalHours", "simpleRegHours", "simpleRestHours", "simpleSpecialHours",
+        "simpleSpecialRestHours", "simpleLegalHours", "simpleLegalRestHours",
+        "simpleLegalUnworked",
     }
     extra_keys = set(data.keys()) - ALLOWED_KEYS
     if extra_keys:
@@ -175,6 +188,102 @@ def compute():
     rate_mode = str(data.get("rateMode", "monthly"))
     if rate_mode not in VALID_RATE_MODES:
         return jsonify({"error": "Invalid rate mode"}), 400
+
+    # ── Simple mode: categorized hours × DOLE multipliers, no DTR ──
+    if rate_mode == "simple":
+        SIMPLE_FIELDS = {
+            "simpleRegHours":      1.00,
+            "simpleRestHours":     1.30,
+            "simpleSpecialHours":  1.30,
+            "simpleSpecialRestHours": 1.50,
+            "simpleLegalHours":    2.00,
+            "simpleLegalRestHours":  2.60,
+            "simpleLegalUnworked": 1.00,  # days, converted to hours
+        }
+
+        try:
+            hourly_rate = float(data.get("fixedHourly", 0))
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({"error": "Invalid hourly rate"}), 400
+        if hourly_rate < 0 or hourly_rate > MAX_SALARY / (8 * 26):
+            return jsonify({"error": "Invalid hourly rate"}), 400
+
+        try:
+            sss = float(data.get("sss", 0))
+            philhealth = float(data.get("philhealth", 0))
+            pagibig = float(data.get("pagibig", 0))
+            wtax = float(data.get("tax", 0))
+            other = float(data.get("otherDeductions", 0))
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({"error": "Invalid deduction values"}), 400
+        for val, name in [(sss,"sss"),(philhealth,"philhealth"),(pagibig,"pagibig"),(wtax,"tax"),(other,"otherDeductions")]:
+            if val < 0:
+                return jsonify({"error": f"{name} cannot be negative"}), 400
+
+        period_str = str(data.get("period", ""))
+        if period_str not in VALID_PERIODS:
+            return jsonify({"error": "Invalid pay period"}), 400
+
+        emp_name = str(data.get("empName", "Employee"))[:MAX_NAME_LENGTH]
+        emp_name = escape(emp_name).strip() or "Employee"
+
+        earnings = []
+        gross = 0.0
+        total_hours = 0.0
+        CAT_LABELS = {
+            "simpleRegHours": "Regular pay",
+            "simpleRestHours": "Rest day pay",
+            "simpleSpecialHours": "Special holiday pay",
+            "simpleSpecialRestHours": "Special holiday (rest day) pay",
+            "simpleLegalHours": "Legal holiday pay",
+            "simpleLegalRestHours": "Legal holiday (rest day) pay",
+            "simpleLegalUnworked": "Legal holiday (unworked)",
+        }
+
+        for field, mult in SIMPLE_FIELDS.items():
+            try:
+                val = float(data.get(field, 0))
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if val < 0:
+                return jsonify({"error": f"Invalid {field}"}), 400
+
+            h = val * 8 if field == "simpleLegalUnworked" else val
+            amt = h * hourly_rate * mult
+            if amt > 0:
+                earnings.append({"label": CAT_LABELS[field], "amount": round(amt, 2)})
+            gross += amt
+            total_hours += h
+
+        total_ded = sss + philhealth + pagibig + wtax + other
+        net = max(round(gross, 2) - total_ded, 0)
+
+        ded_rows = []
+        if sss > 0:
+            ded_rows.append({"label": "SSS contribution", "amount": sss})
+        if philhealth > 0:
+            ded_rows.append({"label": "PhilHealth contribution", "amount": philhealth})
+        if pagibig > 0:
+            ded_rows.append({"label": "Pag-IBIG contribution", "amount": pagibig})
+        if wtax > 0:
+            ded_rows.append({"label": "Withholding tax", "amount": wtax})
+        if other > 0:
+            ded_rows.append({"label": "Other deductions", "amount": other})
+
+        return jsonify({
+            "employeeName": emp_name,
+            "period": period_str,
+            "hourlyRate": hourly_rate,
+            "workDays": 0,
+            "totalRegHrs": round(total_hours, 2),
+            "totalOTHrs": 0,
+            "grossPay": round(gross, 2),
+            "totalDeductions": total_ded,
+            "netPay": round(net, 2),
+            "earnings": earnings,
+            "deductions": ded_rows,
+            "baseLabel": None,
+        })
 
     # ── Validate salary ──
     try:
