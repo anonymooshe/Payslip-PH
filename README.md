@@ -1,7 +1,6 @@
 # PaySlip PH — Philippine Payroll System
 
-DOLE-compliant web-based payroll calculator with a Python backend and HTML/JS frontend.
-
+Philippine payroll calculator with a Python backend and HTML/JS frontend.
 ---
 
 ## Architecture

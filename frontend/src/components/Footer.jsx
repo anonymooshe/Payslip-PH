@@ -6,7 +6,7 @@ export default function Footer({ onShowTerms, onHome }) {
           <div className="footer-logo-mark">₱</div>
           <div>
             <div className="footer-logo-name">PaySlip PH</div>
-            <div className="footer-logo-sub">DOLE-compliant payroll calculator</div>
+            <div className="footer-logo-sub">Payroll calculator based on Philippine labor standards</div>
           </div>
         </div>
         <div className="footer-links">

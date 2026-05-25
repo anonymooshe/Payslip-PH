@@ -12,11 +12,13 @@ export default function TermsModal({ show, onClose }) {
           <p>PaySlip PH is a payroll calculation tool designed to assist Philippine employers in computing employee salaries in accordance with Department of Labor and Employment (DOLE) labor standards. This tool is provided for informational and computational convenience only.</p>
 
           <h4>2. Accuracy Disclaimer</h4>
-          <p>While every effort has been made to ensure that calculations reflect current DOLE multipliers and Philippine labor regulations, PaySlip PH does not guarantee the accuracy, completeness, or timeliness of its computations. Users are strongly advised to:</p>
+          <p>
+            While efforts are made to ensure calculations reflect current payroll rules and contribution rates,
+            PaySlip PH does not guarantee the accuracy, completeness, or timeliness of results. Users are advised to:</p>
           <ul>
-            <li>Verify all computed results against official DOLE guidelines and BIR tax tables.</li>
-            <li>Consult with a licensed HR professional, accountant, or labor law practitioner before finalizing payroll disbursements.</li>
-            <li>Check for updates to SSS, PhilHealth, and Pag-IBIG contribution schedules, as these are subject to periodic changes by the respective government agencies.</li>
+            <li>Verify results against official DOLE, BIR, SSS, PhilHealth, and Pag-IBIG references.</li>
+            <li>Consult a qualified HR professional or accountant before payroll processing.</li>
+            <li>Regularly check for updates in government-mandated rates and tables.</li>
           </ul>
 
           <h4>3. No Legal Advice</h4>
@@ -33,6 +35,7 @@ export default function TermsModal({ show, onClose }) {
             <li>Loss of data, profits, business opportunities, or reputation.</li>
             <li>Claims, suits, or actions brought by employees, contractors, or third parties resulting from the use of this software.</li>
           </ul>
+          
           <p>By using this software, you expressly agree to indemnify and hold harmless the developers from any and all claims, liabilities, damages, and legal costs arising out of your use of PaySlip PH.</p>
 
           <h4>6. Use at Your Own Risk</h4>

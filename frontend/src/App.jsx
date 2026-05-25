@@ -240,7 +240,7 @@ function App() {
           <div className="logo-mark">₱</div>
           <div>
             <div className="logo-name">PaySlip PH</div>
-            <div className="logo-tag">DOLE-compliant payroll calculator</div>
+            <div className="logo-tag">Payroll calculator based on Philippine labor standards</div>
           </div>
         </div>
         <div className="header-right">🇵🇭 Philippine Labor Standards</div>
