@@ -23,7 +23,8 @@ export default function LandingPage() {
       <h1>PaySlip <em>PH</em></h1>
 
       <p className="subtitle">
-        DOLE-compliant payroll calculator for Philippine employers. Compute salaries with overtime, holiday pay, and rest day premiums — accurately, every time.
+        Payroll calculator for Philippine employers based on labor standards. 
+        Compute salaries with overtime, holiday pay, and rest day premiums — accurately, every time.
       </p>
 
       <div className="landing-features">
@@ -45,46 +46,88 @@ export default function LandingPage() {
           <div className="modal">
             <div className="modal-header">
               <h3>Terms of Use</h3>
-              <button className="modal-close" onClick={() => setShowTerms(false)} aria-label="Close">&times;</button>
+              <button
+                className="modal-close"
+                onClick={() => setShowTerms(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
             </div>
+          
             <div className="modal-body">
               <h4>1. Purpose</h4>
-              <p>PaySlip PH is a payroll calculation tool designed to assist Philippine employers in computing employee salaries in accordance with Department of Labor and Employment (DOLE) labor standards. This tool is provided for informational and computational convenience only.</p>
-
+              <p>
+                PaySlip PH is a payroll calculation tool designed to assist Philippine employers
+                in computing employee salaries based on publicly available Philippine labor standards
+                and DOLE guidelines. This tool is provided for informational and computational purposes only.
+              </p>
+          
               <h4>2. Accuracy Disclaimer</h4>
-              <p>While every effort has been made to ensure that calculations reflect current DOLE multipliers and Philippine labor regulations, PaySlip PH does not guarantee the accuracy, completeness, or timeliness of its computations. Users are strongly advised to:</p>
+              <p>
+                While efforts are made to ensure calculations reflect current payroll rules and contribution rates,
+                PaySlip PH does not guarantee the accuracy, completeness, or timeliness of results. Users are advised to:
+              </p>
               <ul>
-                <li>Verify all computed results against official DOLE guidelines and BIR tax tables.</li>
-                <li>Consult with a licensed HR professional, accountant, or labor law practitioner before finalizing payroll disbursements.</li>
-                <li>Check for updates to SSS, PhilHealth, and Pag-IBIG contribution schedules, as these are subject to periodic changes by the respective government agencies.</li>
+                <li>Verify results against official DOLE, BIR, SSS, PhilHealth, and Pag-IBIG references.</li>
+                <li>Consult a qualified HR professional or accountant before payroll processing.</li>
+                <li>Regularly check for updates in government-mandated rates and tables.</li>
               </ul>
-
-              <h4>3. No Legal Advice</h4>
-              <p>PaySlip PH does not constitute legal, tax, or professional advice. The developers and contributors of this software assume no liability for errors, omissions, or any consequences arising from the use of computed results.</p>
-
+          
+              <h4>3. No Legal or Professional Advice</h4>
+              <p>
+                PaySlip PH does not provide legal, tax, or accounting advice. Users are responsible for how they apply
+                the computed results in real payroll processes.
+              </p>
+          
               <h4>4. Data Privacy</h4>
-              <p>This application performs all calculations locally. Employee names, salary details, and DTR entries entered into this tool are not stored, transmitted, or collected by any third party. No personal data is retained after the browser session ends.</p>
-
+              <p>
+                This application performs all calculations locally in your browser. No employee data,
+                salary information, or time records are stored, transmitted, or collected.
+              </p>
+          
               <h4>5. Limitation of Liability</h4>
-              <p>To the maximum extent permitted by applicable law, the developers, contributors, and maintainers of PaySlip PH shall not be held liable for any direct, indirect, incidental, special, consequential, or punitive damages—including but not limited to:</p>
+              <p>
+                To the maximum extent permitted by law, the developers of PaySlip PH are not liable for any damages or losses
+                arising from the use of this software, including but not limited to:
+              </p>
               <ul>
-                <li>Legal penalties, fines, or sanctions from government agencies (DOLE, BIR, SSS, PhilHealth, Pag-IBIG).</li>
-                <li>Underpayment or overpayment of employee salaries, benefits, or contributions.</li>
-                <li>Loss of data, profits, business opportunities, or reputation.</li>
-                <li>Claims, suits, or actions brought by employees, contractors, or third parties resulting from the use of this software.</li>
+                <li>Payroll miscalculations or discrepancies</li>
+                <li>Government penalties, fines, or compliance issues</li>
+                <li>Data loss or business interruptions</li>
+                <li>Claims from employees or third parties</li>
               </ul>
-              <p>By using this software, you expressly agree to indemnify and hold harmless the developers from any and all claims, liabilities, damages, and legal costs arising out of your use of PaySlip PH.</p>
-
+          
+              <p>
+                By using this software, you agree that you are solely responsible for verifying payroll outputs before use.
+              </p>
+          
               <h4>6. Use at Your Own Risk</h4>
-              <p>By using PaySlip PH, you acknowledge and agree that your use of this tool is entirely at your own risk. The software is provided &quot;as is&quot; without warranties of any kind, either express or implied.</p>
-
+              <p>
+                PaySlip PH is provided "as is" without warranties of any kind, either express or implied.
+                Use of this tool is entirely at your own discretion and risk.
+              </p>
+          
               <h4>7. License</h4>
-              <p>This software is intended for personal and organizational use. Redistribution or commercial use without explicit permission from the author is prohibited.</p>
-
+              <p>
+                This software is intended for personal and organizational use. Redistribution, resale, or commercial use
+                without permission is not allowed.
+              </p>
+          
               <h4>8. Updates</h4>
-              <p>These Terms of Use may be revised at any time. Continued use of the application after changes constitutes acceptance of the updated terms.</p>
-
-              <p style={{color: '#6b7280', marginTop: '1.5rem', fontSize: '13px'}}><em>Last updated: May 2026</em></p>
+              <p>
+                These Terms may be updated from time to time. Continued use of the application means you accept any changes.
+              </p>
+          
+              <p
+                style={{
+                  color: "#6b7280",
+                  marginTop: "1.5rem",
+                  fontSize: "13px",
+                }}
+              >
+                <em>Last updated: May 2026</em>
+              </p>
             </div>
           </div>
         </div>
